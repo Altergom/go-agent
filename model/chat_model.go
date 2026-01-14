@@ -1,8 +1,11 @@
 package model
 
-import "github.com/cloudwego/eino/components/model"
+import (
+	"github.com/cloudwego/eino-ext/components/model/ark"
+	"github.com/cloudwego/eino-ext/components/model/openai"
+)
 
 type ChatModel struct {
-	Ark    model.BaseChatModel
-	OpenAI model.BaseChatModel
+	Ark    ark.ChatModel
+	OpenAI openai.ChatModel
 }

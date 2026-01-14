@@ -7,6 +7,10 @@ import (
 )
 
 type Config struct {
+	// 模型类型配置
+	ChatModelType      string
+	EmbeddingModelType string
+
 	ArkConf    ArkConfig
 	OpenAIConf OpenAIConfig
 }
@@ -32,6 +36,9 @@ func LoadConfig() (*Config, error) {
 	}
 
 	config := &Config{
+		ChatModelType:      getEnv("CHAT_MODEL_TYPE", "ark"),
+		EmbeddingModelType: getEnv("EMBEDDING_MODEL_TYPE", "ark"),
+
 		ArkConf: ArkConfig{
 			ArkKey:            getEnv("ARK_KEY", ""),
 			ArkEmbeddingModel: getEnv("ARK_EMBEDDING_MODEL", ""),
