@@ -13,6 +13,7 @@ type Config struct {
 
 	ArkConf    ArkConfig
 	OpenAIConf OpenAIConfig
+	MilvusConf MilvusConfig
 }
 
 type ArkConfig struct {
@@ -24,6 +25,13 @@ type ArkConfig struct {
 type OpenAIConfig struct {
 	OpenAIKey       string
 	OpenAIChatModel string
+}
+
+type MilvusConfig struct {
+	MilvusAddr     string
+	MilvusUserName string
+	MilvusPassword string
+	TopK           string
 }
 
 var Cfg *Config
@@ -47,6 +55,12 @@ func LoadConfig() (*Config, error) {
 		OpenAIConf: OpenAIConfig{
 			OpenAIKey:       getEnv("OPENAI_KEY", ""),
 			OpenAIChatModel: getEnv("OPENAI_CHAT_MODEL", "gpt-4"),
+		},
+		MilvusConf: MilvusConfig{
+			MilvusAddr:     getEnv("MILVUS_ADDR", "localhost:27017"),
+			MilvusUserName: getEnv("MILVUS_USERNAME", ""),
+			MilvusPassword: getEnv("MILVUS_PASSWORD", ""),
+			TopK:           getEnv("MILVUS_TOPK", "10"),
 		},
 	}
 
