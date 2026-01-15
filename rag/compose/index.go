@@ -13,9 +13,10 @@ import (
 // BuildIndexingGraph 创建检索图
 func BuildIndexingGraph(ctx context.Context) (compose.Runnable[document.Source, []string], error) {
 	const (
-		FileLoader    = "FileLoader"
-		TextSplitter  = "TextSplitter"
-		MilvusIndexer = "MilvusIndexer"
+		FileLoader     = "FileLoader"
+		TextSplitter   = "TextSplitter"
+		MilvusIndexer  = "MilvusIndexer"
+		DocumentParser = "DocumentParser"
 	)
 
 	// 初始化组件
@@ -47,10 +48,12 @@ func BuildIndexingGraph(ctx context.Context) (compose.Runnable[document.Source, 
 	_ = g.AddLoaderNode(FileLoader, loader)
 	_ = g.AddDocumentTransformerNode(TextSplitter, splitter)
 	_ = g.AddIndexerNode(MilvusIndexer, indexer)
+	_ = g.AddLambdaNode(DocumentParser, compose.InvokableLambda(BuildParseGraph))
 
 	// 添加边
 	_ = g.AddEdge(compose.START, FileLoader)
-	_ = g.AddEdge(FileLoader, TextSplitter)
+	_ = g.AddEdge(FileLoader, DocumentParser)
+	_ = g.AddEdge(DocumentParser, TextSplitter)
 	_ = g.AddEdge(TextSplitter, MilvusIndexer)
 	_ = g.AddEdge(MilvusIndexer, compose.END)
 
