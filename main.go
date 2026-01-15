@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"go-agent/config"
-	"go-agent/rag"
+	"go-agent/rag/tools"
 	"log"
 )
 
@@ -20,29 +20,29 @@ func main() {
 	// 初始化模型
 
 	// 初始化数据库
-	db, err := rag.NewMilvus(ctx)
+	db, err := tools.NewMilvus(ctx)
 	if err != nil {
 		log.Fatalf("Milvus init fail: %v", err)
 	}
-	rag.Milvus = db
-	defer rag.Milvus.Close()
+	tools.Milvus = db
+	defer tools.Milvus.Close()
 
 	// 初始化embedder
-	emb, err := rag.NewEmbedding(ctx)
+	emb, err := tools.NewEmbedding(ctx)
 	if err != nil {
 		log.Fatalf("embedder init fail: %v", err)
 	}
-	rag.Embedding = emb
+	tools.Embedding = emb
 
-	ind, err := rag.NewIndexer(ctx)
+	ind, err := tools.NewIndexer(ctx)
 	if err != nil {
 		log.Fatalf("indexer init fail: %v", err)
 	}
-	rag.Indexer = ind
+	tools.Indexer = ind
 
-	ret, err := rag.NewRetriever(ctx)
+	ret, err := tools.NewRetriever(ctx)
 	if err != nil {
 		log.Fatalf("retriever init fail: %v", err)
 	}
-	rag.Retriever = ret
+	tools.Retriever = ret
 }
