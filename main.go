@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"go-agent/api"
 	"go-agent/config"
 	"go-agent/rag/tools"
 	"log"
@@ -45,4 +46,12 @@ func main() {
 		log.Fatalf("retriever init fail: %v", err)
 	}
 	tools.Retriever = ret
+
+	par, err := tools.NewParser(ctx)
+	if err != nil {
+		log.Fatalf("parser init fail: %v", err)
+	}
+	tools.Par = par
+
+	api.Run()
 }
