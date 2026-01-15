@@ -11,6 +11,8 @@ require (
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/cloudwego/eino v0.7.18 // indirect
 	github.com/cloudwego/eino-ext v0.0.1-alpha // indirect
+	github.com/cloudwego/eino-ext/components/document/loader/file v0.0.0-20260114111548-9f93a1348a18 // indirect
+	github.com/cloudwego/eino-ext/components/document/transformer/splitter/recursive v0.0.0-20260114111548-9f93a1348a18 // indirect
 	github.com/cloudwego/eino-ext/components/embedding/ark v0.1.1 // indirect
 	github.com/cloudwego/eino-ext/components/indexer/milvus v0.0.0-20260114111548-9f93a1348a18 // indirect
 	github.com/cloudwego/eino-ext/components/model/ark v0.1.62 // indirect
