@@ -1,4 +1,4 @@
-package rag
+package tools
 
 import (
 	"context"
