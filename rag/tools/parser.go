@@ -2,50 +2,41 @@ package tools
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/cloudwego/eino-ext/components/document/parser/html"
 	"github.com/cloudwego/eino-ext/components/document/parser/pdf"
 	"github.com/cloudwego/eino/components/document/parser"
 )
 
-type Parser struct {
-	PDFParser  *pdf.PDFParser
-	HTMLParser *html.Parser
-	ExtParser  *parser.ExtParser
-}
+var Parser parser.Parser
 
-var Par *Parser
-
-func NewParser(ctx context.Context) (*Parser, error) {
+func NewParser(ctx context.Context) (parser.Parser, error) {
 	textParser := parser.TextParser{}
+
 	htmlParser, err := html.NewParser(ctx, &html.Config{})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create HTML parser: %w", err)
 	}
 
 	pdfParser, err := pdf.NewPDFParser(ctx, &pdf.Config{})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create PDF parser: %w", err)
 	}
 
-	// 创建扩展解析器
 	extParser, err := parser.NewExtParser(ctx, &parser.ExtParserConfig{
-		// 注册特定扩展名的解析器
 		Parsers: map[string]parser.Parser{
 			".html": htmlParser,
+			".htm":  htmlParser,
 			".pdf":  pdfParser,
+			".txt":  textParser,
+			".md":   textParser,
 		},
-		// 设置默认解析器，用于处理未知格式
 		FallbackParser: textParser,
 	})
 	if err != nil {
-		return nil, err
-	}
-	p := &Parser{
-		PDFParser:  pdfParser,
-		HTMLParser: htmlParser,
-		ExtParser:  extParser,
+		return nil, fmt.Errorf("failed to create ext parser: %w", err)
 	}
 
-	return p, nil
+	return extParser, nil
 }

@@ -47,11 +47,11 @@ func main() {
 	}
 	tools.Retriever = ret
 
-	par, err := tools.NewParser(ctx)
+	parser, err := tools.NewParser(ctx)
 	if err != nil {
 		log.Fatalf("parser init fail: %v", err)
 	}
-	tools.Par = par
+	tools.Parser = parser
 
 	api.Run()
 }
