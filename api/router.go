@@ -80,8 +80,8 @@ func Run() {
 	r.POST("/api/document/insert", InsertDocument)
 
 	// 添加聊天测试路由
-	r.POST("/api/chat/test", ChatTest)
-	r.POST("/api/chat/test/stream", ChatTestStream)
+	r.POST("/api/chat/test", ChatGenerate)
+	r.POST("/api/chat/test/stream", ChatStream)
 
 	err = r.Run(":8080")
 	if err != nil {
