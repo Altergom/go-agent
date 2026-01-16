@@ -1,7 +1,6 @@
 package api
 
 import (
-	"context"
 	"go-agent/model"
 	"io"
 	"net/http"
@@ -42,7 +41,8 @@ func ChatTest(c *gin.Context) {
 		return
 	}
 
-	ctx := context.Background()
+	// 使用请求的上下文
+	ctx := c.Request.Context()
 
 	// 构建消息列表
 	messages := make([]*schema.Message, 0)
@@ -90,20 +90,26 @@ func ChatTestStream(c *gin.Context) {
 		return
 	}
 
-	// 设置 SSE 响应头
-	c.Header("Content-Type", "text/event-stream")
-	c.Header("Cache-Control", "no-cache")
-	c.Header("Connection", "keep-alive")
-	c.Header("Access-Control-Allow-Origin", "*")
-	c.Header("Access-Control-Allow-Headers", "Content-Type")
-
+	// 检查是否支持流式输出
 	flusher, ok := c.Writer.(http.Flusher)
 	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Streaming not supported"})
 		return
 	}
 
-	ctx := context.Background()
+	// 设置 SSE 响应头（必须在写入任何内容之前设置）
+	c.Header("Content-Type", "text/event-stream")
+	c.Header("Cache-Control", "no-cache")
+	c.Header("Connection", "keep-alive")
+	c.Header("Access-Control-Allow-Origin", "*")
+	c.Header("Access-Control-Allow-Headers", "Content-Type")
+
+	// 设置状态码为 200
+	c.Writer.WriteHeader(http.StatusOK)
+
+	// 使用请求的上下文，而不是 Background()
+	// 这样可以正确处理请求取消和超时
+	ctx := c.Request.Context()
 
 	// 构建消息列表
 	messages := make([]*schema.Message, 0)
@@ -123,7 +129,7 @@ func ChatTestStream(c *gin.Context) {
 	// 添加当前问题
 	messages = append(messages, schema.UserMessage(req.Question))
 
-	// 调用模型的 Stream 方法
+	// 调用模型的 Stream 方法（大模型会流式返回内容）
 	streamReader, err := model.CM.Stream(ctx, messages)
 	if err != nil {
 		c.SSEvent("error", gin.H{"error": err.Error()})
@@ -138,7 +144,7 @@ func ChatTestStream(c *gin.Context) {
 	})
 	flusher.Flush()
 
-	// 读取流式数据
+	// 读取大模型流式返回的数据，并实时发送给客户端
 	for {
 		msg, err := streamReader.Recv()
 
