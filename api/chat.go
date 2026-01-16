@@ -27,8 +27,8 @@ type ChatTestResponse struct {
 	Answer   string `json:"answer"`
 }
 
-// ChatTest 测试聊天模型的常规输出
-func ChatTest(c *gin.Context) {
+// ChatGenerate 聊天模型的常规输出
+func ChatGenerate(c *gin.Context) {
 	var req ChatTestRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format: " + err.Error()})
@@ -47,7 +47,7 @@ func ChatTest(c *gin.Context) {
 	// 构建消息列表
 	messages := make([]*schema.Message, 0)
 
-	// 添加系统消息（可选）
+	// TODO 后期提示词模板写完替换
 	messages = append(messages, schema.SystemMessage("你是一个有用的AI助手。"))
 
 	// 添加历史对话
@@ -76,8 +76,8 @@ func ChatTest(c *gin.Context) {
 	})
 }
 
-// ChatTestStream 测试聊天模型的流式输出
-func ChatTestStream(c *gin.Context) {
+// ChatStream 测试聊天模型的流式输出
+func ChatStream(c *gin.Context) {
 	var req ChatTestRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format: " + err.Error()})
@@ -104,17 +104,12 @@ func ChatTestStream(c *gin.Context) {
 	c.Header("Access-Control-Allow-Origin", "*")
 	c.Header("Access-Control-Allow-Headers", "Content-Type")
 
-	// 设置状态码为 200
 	c.Writer.WriteHeader(http.StatusOK)
-
-	// 使用请求的上下文，而不是 Background()
-	// 这样可以正确处理请求取消和超时
-	ctx := c.Request.Context()
 
 	// 构建消息列表
 	messages := make([]*schema.Message, 0)
 
-	// 添加系统消息（可选）
+	// TODO 后期提示词模版写完替换该处
 	messages = append(messages, schema.SystemMessage("你是一个有用的AI助手。"))
 
 	// 添加历史对话
@@ -129,8 +124,7 @@ func ChatTestStream(c *gin.Context) {
 	// 添加当前问题
 	messages = append(messages, schema.UserMessage(req.Question))
 
-	// 调用模型的 Stream 方法（大模型会流式返回内容）
-	streamReader, err := model.CM.Stream(ctx, messages)
+	streamReader, err := model.CM.Stream(c.Request.Context(), messages)
 	if err != nil {
 		c.SSEvent("error", gin.H{"error": err.Error()})
 		flusher.Flush()
