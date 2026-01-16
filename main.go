@@ -4,6 +4,7 @@ import (
 	"context"
 	"go-agent/api"
 	"go-agent/config"
+	"go-agent/model"
 	"go-agent/rag/tools"
 	"log"
 )
@@ -19,6 +20,12 @@ func main() {
 	ctx := context.Background()
 
 	// 初始化模型
+	chatModel, err := model.NewChatModel(ctx)
+	if err != nil {
+		log.Fatalf("ChatModel init fail: %v", err)
+	}
+
+	model.CM = chatModel
 
 	// 初始化数据库
 	db, err := tools.NewMilvus(ctx)

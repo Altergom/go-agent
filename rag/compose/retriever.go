@@ -74,7 +74,7 @@ func BuildRAGGraph(ctx context.Context) (compose.Runnable[map[string]any, *schem
 
 	_ = g.AddChatTemplateNode(ChatTemplate, chatTemplate)
 
-	_ = g.AddChatModelNode(ChatModel, model.Md.ChatModel,
+	_ = g.AddChatModelNode(ChatModel, model.CM,
 		compose.WithNodeName("ChatModel"),
 	)
 
