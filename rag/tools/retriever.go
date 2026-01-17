@@ -12,7 +12,10 @@ import (
 var Retriever *milvus.Retriever
 
 func NewRetriever(ctx context.Context) (*milvus.Retriever, error) {
-	topK, _ := strconv.Atoi(config.Cfg.MilvusConf.TopK)
+	topK, err := strconv.Atoi(config.Cfg.MilvusConf.TopK)
+	if err != nil || topK <= 0 {
+		topK = 10
+	}
 	ret, err := milvus.NewRetriever(ctx, &milvus.RetrieverConfig{
 		Client:    Milvus,
 		Embedding: Embedding,

@@ -28,10 +28,12 @@ type OpenAIConfig struct {
 }
 
 type MilvusConfig struct {
-	MilvusAddr     string
-	MilvusUserName string
-	MilvusPassword string
-	TopK           string
+	MilvusAddr          string
+	MilvusUserName      string
+	MilvusPassword      string
+	SimilarityThreshold string
+	CollectionName      string
+	TopK                string
 }
 
 var Cfg *Config
@@ -57,10 +59,12 @@ func LoadConfig() (*Config, error) {
 			OpenAIChatModel: getEnv("OPENAI_CHAT_MODEL", "gpt-4"),
 		},
 		MilvusConf: MilvusConfig{
-			MilvusAddr:     getEnv("MILVUS_ADDR", "localhost:27017"),
-			MilvusUserName: getEnv("MILVUS_USERNAME", ""),
-			MilvusPassword: getEnv("MILVUS_PASSWORD", ""),
-			TopK:           getEnv("MILVUS_TOPK", "10"),
+			MilvusAddr:          getEnv("MILVUS_ADDR", "localhost:27017"),
+			MilvusUserName:      getEnv("MILVUS_USERNAME", ""),
+			MilvusPassword:      getEnv("MILVUS_PASSWORD", ""),
+			SimilarityThreshold: getEnv("SIMILARITY_THRESHOLD", ""),
+			CollectionName:      getEnv("MILVUS_COLLECTION_NAME", ""),
+			TopK:                getEnv("MILVUS_TOPK", "10"),
 		},
 	}
 
