@@ -10,55 +10,51 @@ import (
 )
 
 func main() {
+	var err error
+	ctx := context.Background()
+
 	// 初始化config
-	cfg, err := config.LoadConfig()
+	config.Cfg, err = config.LoadConfig()
 	if err != nil {
 		log.Fatal("警告: 未找到 .env 文件")
 	}
-	config.Cfg = cfg
-
-	ctx := context.Background()
 
 	// 初始化模型
-	chatModel, err := model.NewChatModel(ctx)
+	model.CM, err = model.NewChatModel(ctx)
 	if err != nil {
 		log.Fatalf("ChatModel init fail: %v", err)
 	}
 
-	model.CM = chatModel
-
 	// 初始化数据库
-	db, err := tools.NewMilvus(ctx)
+	tools.Milvus, err = tools.NewMilvus(ctx)
 	if err != nil {
 		log.Fatalf("Milvus init fail: %v", err)
 	}
-	tools.Milvus = db
 	defer tools.Milvus.Close()
 
-	// 初始化embedder
-	emb, err := tools.NewEmbedding(ctx)
+	// 初始化嵌入模型
+	tools.Embedding, err = tools.NewEmbedding(ctx)
 	if err != nil {
 		log.Fatalf("embedder init fail: %v", err)
 	}
-	tools.Embedding = emb
 
-	ind, err := tools.NewIndexer(ctx)
+	// 初始化检索器
+	tools.Indexer, err = tools.NewIndexer(ctx)
 	if err != nil {
 		log.Fatalf("indexer init fail: %v", err)
 	}
-	tools.Indexer = ind
 
-	ret, err := tools.NewRetriever(ctx)
+	// 初始化召回器
+	tools.Retriever, err = tools.NewRetriever(ctx)
 	if err != nil {
 		log.Fatalf("retriever init fail: %v", err)
 	}
-	tools.Retriever = ret
 
-	parser, err := tools.NewParser(ctx)
+	// 初始化解析器
+	tools.Parser, err = tools.NewParser(ctx)
 	if err != nil {
 		log.Fatalf("parser init fail: %v", err)
 	}
-	tools.Parser = parser
 
 	api.Run()
 }

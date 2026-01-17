@@ -4,8 +4,6 @@ import (
 	"context"
 	"go-agent/rag/tools"
 
-	"github.com/cloudwego/eino-ext/components/document/loader/file"
-	"github.com/cloudwego/eino-ext/components/document/transformer/splitter/recursive"
 	"github.com/cloudwego/eino/components/document"
 	"github.com/cloudwego/eino/compose"
 )
@@ -19,35 +17,13 @@ func BuildIndexingGraph(ctx context.Context) (compose.Runnable[document.Source, 
 		DocumentParser = "DocumentParser"
 	)
 
-	// 初始化组件
-	loader, err := file.NewFileLoader(ctx, &file.FileLoaderConfig{
-		UseNameAsID: true,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	splitter, err := recursive.NewSplitter(ctx, &recursive.Config{
-		ChunkSize:   0,
-		OverlapSize: 0,
-		IDGenerator: nil,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	indexer, err := tools.NewIndexer(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	// 创建图
 	g := compose.NewGraph[document.Source, []string]()
 
 	// 添加节点
-	_ = g.AddLoaderNode(FileLoader, loader)
-	_ = g.AddDocumentTransformerNode(TextSplitter, splitter)
-	_ = g.AddIndexerNode(MilvusIndexer, indexer)
+	_ = g.AddLoaderNode(FileLoader, tools.Loader)
+	_ = g.AddDocumentTransformerNode(TextSplitter, tools.Splitter)
+	_ = g.AddIndexerNode(MilvusIndexer, tools.Indexer)
 	_ = g.AddLambdaNode(DocumentParser, compose.InvokableLambda(BuildParseGraph))
 
 	// 添加边
