@@ -9,6 +9,7 @@ import (
 	"github.com/cloudwego/eino/components/document/parser"
 )
 
+// Parser 解析器 解析文档为[]*schema.Document数据结构
 var Parser parser.Parser
 
 func NewParser(ctx context.Context) (parser.Parser, error) {

@@ -11,7 +11,7 @@ import (
 	"github.com/cloudwego/eino/schema"
 )
 
-func BuildParseGraph(ctx context.Context, input []*schema.Document) ([]*schema.Document, error) {
+func BuildParseNode(ctx context.Context, input []*schema.Document) ([]*schema.Document, error) {
 	var parsedDocs []*schema.Document
 
 	for _, doc := range input {

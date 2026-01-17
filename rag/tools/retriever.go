@@ -8,6 +8,7 @@ import (
 	"github.com/cloudwego/eino-ext/components/retriever/milvus"
 )
 
+// Retriever 召回器 召回miLvus存储结果(就是MySQL的select)
 var Retriever *milvus.Retriever
 
 func NewRetriever(ctx context.Context) (*milvus.Retriever, error) {
@@ -20,5 +21,6 @@ func NewRetriever(ctx context.Context) (*milvus.Retriever, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return ret, nil
 }

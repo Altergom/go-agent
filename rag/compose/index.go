@@ -24,7 +24,7 @@ func BuildIndexingGraph(ctx context.Context) (compose.Runnable[document.Source, 
 	_ = g.AddLoaderNode(FileLoader, tools.Loader)
 	_ = g.AddDocumentTransformerNode(TextSplitter, tools.Splitter)
 	_ = g.AddIndexerNode(MilvusIndexer, tools.Indexer)
-	_ = g.AddLambdaNode(DocumentParser, compose.InvokableLambda(BuildParseGraph))
+	_ = g.AddLambdaNode(DocumentParser, compose.InvokableLambda(BuildParseNode))
 
 	// 添加边
 	_ = g.AddEdge(compose.START, FileLoader)

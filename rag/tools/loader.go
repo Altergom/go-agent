@@ -7,6 +7,7 @@ import (
 	"github.com/cloudwego/eino/components/document"
 )
 
+// Loader 文档加载器，提供Load方法将文档转为[]*schema.Document数据结构
 var Loader document.Loader
 
 func NewLoader(ctx context.Context) (document.Loader, error) {

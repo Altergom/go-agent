@@ -6,6 +6,7 @@ import (
 	"github.com/cloudwego/eino-ext/components/indexer/milvus"
 )
 
+// Indexer 检索器 把向量化的结果塞入milvus
 var Indexer *milvus.Indexer
 
 func NewIndexer(ctx context.Context) (*milvus.Indexer, error) {
@@ -16,5 +17,6 @@ func NewIndexer(ctx context.Context) (*milvus.Indexer, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return indexer, nil
 }
