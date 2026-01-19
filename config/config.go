@@ -62,7 +62,7 @@ func LoadConfig() (*Config, error) {
 			MilvusAddr:          getEnv("MILVUS_ADDR", "localhost:27017"),
 			MilvusUserName:      getEnv("MILVUS_USERNAME", ""),
 			MilvusPassword:      getEnv("MILVUS_PASSWORD", ""),
-			SimilarityThreshold: getEnv("SIMILARITY_THRESHOLD", ""),
+			SimilarityThreshold: getEnv("MILVUS_SIMILARITY_THRESHOLD", ""),
 			CollectionName:      getEnv("MILVUS_COLLECTION_NAME", ""),
 			TopK:                getEnv("MILVUS_TOPK", "10"),
 		},

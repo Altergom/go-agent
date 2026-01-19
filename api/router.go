@@ -15,7 +15,7 @@ func Run() {
 	// 添加 CORS 中间件
 	r.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
 		if c.Request.Method == "OPTIONS" {
@@ -137,6 +137,9 @@ func Run() {
 
 	// RAG 召回问答
 	r.POST("/api/rag/ask", RAGAsk)
+	// Milvus 集合管理
+	r.GET("/api/milvus/collections", ListMilvusCollections)
+	r.DELETE("/api/milvus/collections/:name", DeleteMilvusCollection)
 
 	err = r.Run(":8080")
 	if err != nil {
