@@ -5,6 +5,8 @@ import (
 	"go-agent/api"
 	"go-agent/config"
 	"go-agent/model"
+	"go-agent/model/ark"
+	"go-agent/model/openai"
 	"go-agent/rag/tools"
 	"log"
 )
@@ -19,12 +21,6 @@ func main() {
 		log.Fatal("警告: 未找到 .env 文件")
 	}
 
-	// 初始化模型
-	model.CM, err = model.NewChatModel(ctx)
-	if err != nil {
-		log.Fatalf("ChatModel init fail: %v", err)
-	}
-
 	// 初始化数据库
 	tools.Milvus, err = tools.NewMilvus(ctx)
 	if err != nil {
@@ -32,8 +28,20 @@ func main() {
 	}
 	defer tools.Milvus.Close()
 
+	// 注册模型
+	ark.InitChatModel()
+	ark.InitEmbeddingModel()
+	openai.InitChatModel()
+	openai.InitEmbeddingModel()
+
+	// 初始化模型
+	model.CM, err = model.NewChatModel(ctx)
+	if err != nil {
+		log.Fatalf("ChatModel init fail: %v", err)
+	}
+
 	// 初始化嵌入模型
-	tools.Embedding, err = tools.NewEmbedding(ctx)
+	model.Embedding, err = model.NewEmbeddingModel(ctx)
 	if err != nil {
 		log.Fatalf("embedder init fail: %v", err)
 	}

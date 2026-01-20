@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"go-agent/config"
+	"go-agent/model"
 	"strconv"
 
 	"github.com/cloudwego/eino-ext/components/retriever/milvus"
@@ -23,7 +24,7 @@ func NewRetriever(ctx context.Context) (*milvus.Retriever, error) {
 	sp, _ := entity.NewIndexAUTOINDEXSearchParam(1)
 	ret, err := milvus.NewRetriever(ctx, &milvus.RetrieverConfig{
 		Client:       Milvus,
-		Embedding:    Embedding,
+		Embedding:    model.Embedding,
 		TopK:         topK,
 		Collection:   config.Cfg.MilvusConf.CollectionName,
 		VectorField:  "vector",
