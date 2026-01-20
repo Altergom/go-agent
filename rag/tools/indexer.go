@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"go-agent/config"
+	"go-agent/model"
 	"log"
 	"strings"
 	"time"
@@ -61,7 +62,7 @@ func NewIndexer(ctx context.Context) (*milvus.Indexer, error) {
 func buildIndexerConfig(dim int) *milvus.IndexerConfig {
 	return &milvus.IndexerConfig{
 		Client:     Milvus,
-		Embedding:  Embedding,
+		Embedding:  model.Embedding,
 		Collection: config.Cfg.MilvusConf.CollectionName,
 		MetricType: milvus.COSINE,
 		Fields: []*entity.Field{
@@ -133,10 +134,10 @@ func waitCollectionDropped(ctx context.Context, name string, timeout time.Durati
 }
 
 func getEmbeddingDim(ctx context.Context) (int, error) {
-	if Embedding == nil {
+	if model.Embedding == nil {
 		return 0, fmt.Errorf("embedding not initialized")
 	}
-	vecs, err := Embedding.EmbedStrings(ctx, []string{"dim"})
+	vecs, err := model.Embedding.EmbedStrings(ctx, []string{"dim"})
 	if err != nil {
 		return 0, fmt.Errorf("failed to get embedding dim: %w", err)
 	}
