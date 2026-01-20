@@ -54,8 +54,8 @@ func LoadConfig() (*Config, error) {
 
 		ArkConf: ArkConfig{
 			ArkKey:            getEnv("ARK_KEY", ""),
-			ArkEmbeddingModel: getEnv("ARK_EMBEDDING_MODEL", ""),
-			ArkChatModel:      getEnv("ARK_CHAT_MODEL", ""),
+			ArkEmbeddingModel: getEnv("ARK_EMBEDDING_MODEL", "doubao-embedding-text-240715"),
+			ArkChatModel:      getEnv("ARK_CHAT_MODEL", "doubao-seed-1-8-251228"),
 		},
 		OpenAIConf: OpenAIConfig{
 			OpenAIKey:       getEnv("OPENAI_KEY", ""),
@@ -67,7 +67,7 @@ func LoadConfig() (*Config, error) {
 			MilvusUserName:      getEnv("MILVUS_USERNAME", ""),
 			MilvusPassword:      getEnv("MILVUS_PASSWORD", ""),
 			SimilarityThreshold: getEnv("MILVUS_SIMILARITY_THRESHOLD", "0.7"),
-			CollectionName:      getEnv("MILVUS_COLLECTION_NAME", ""),
+			CollectionName:      getEnv("MILVUS_COLLECTION_NAME", "GoAgent"),
 			TopK:                getEnv("MILVUS_TOPK", "10"),
 		},
 	}
