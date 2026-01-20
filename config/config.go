@@ -14,6 +14,8 @@ type Config struct {
 
 	ArkConf    ArkConfig
 	OpenAIConf OpenAIConfig
+	QwenConf   QwenConfig
+
 	MilvusConf MilvusConfig
 }
 
@@ -27,6 +29,11 @@ type OpenAIConfig struct {
 	OpenAIKey       string
 	OpenAIChatModel string
 	OpenAIEmbedding string
+}
+
+type QwenConfig struct {
+	QwenKey       string
+	QwenChatModel string
 }
 
 type MilvusConfig struct {
