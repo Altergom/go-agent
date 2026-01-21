@@ -18,6 +18,7 @@ var Indexer indexer.Indexer
 // NewIndexer 根据配置查找并创建对应的索引器实例
 func NewIndexer(ctx context.Context) (indexer.Indexer, error) {
 	initMilvus()
+	initES()
 	dbType := config.Cfg.VectorDBType
 	create, ok := indexerRegistry[dbType]
 	if !ok {

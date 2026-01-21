@@ -17,6 +17,7 @@ type Config struct {
 	QwenConf   QwenConfig
 
 	MilvusConf MilvusConfig
+	ESConf     ESConfig
 }
 
 type ArkConfig struct {
@@ -45,6 +46,15 @@ type MilvusConfig struct {
 	SimilarityThreshold string
 	CollectionName      string
 	TopK                string
+}
+
+type ESConfig struct {
+	Addresses []string
+	Username  string
+	Password  string
+	CloudID   string
+	APIKey    string
+	Index     string
 }
 
 var Cfg *Config
@@ -83,7 +93,13 @@ func LoadConfig() (*Config, error) {
 			MilvusPassword:      getEnv("MILVUS_PASSWORD", ""),
 			SimilarityThreshold: getEnv("MILVUS_SIMILARITY_THRESHOLD", "0.7"),
 			CollectionName:      getEnv("MILVUS_COLLECTION_NAME", "GoAgent"),
-			TopK:                getEnv("MILVUS_TOPK", "10"),
+			TopK:                getEnv("TOPK", "10"),
+		},
+		ESConf: ESConfig{
+			Addresses: []string{getEnv("ES_ADDRESS", "http://localhost:9200")},
+			Username:  getEnv("ES_USERNAME", ""),
+			Password:  getEnv("ES_PASSWORD", ""),
+			Index:     getEnv("ES_INDEX", "go_agent_docs"),
 		},
 	}
 

@@ -3,7 +3,6 @@ package retriever
 import (
 	"context"
 	"fmt"
-	"go-agent/config"
 
 	"github.com/cloudwego/eino/components/retriever"
 )
@@ -11,14 +10,13 @@ import (
 type RetrieverFactory func(ctx context.Context) (retriever.Retriever, error)
 
 var retrieverRegistry = make(map[string]RetrieverFactory)
-var Retriever retriever.Retriever
 
-func NewRetriever(ctx context.Context) (retriever.Retriever, error) {
+func NewRetriever(ctx context.Context, name string) (retriever.Retriever, error) {
 	initMilvus()
-	dbType := config.Cfg.VectorDBType
-	create, ok := retrieverRegistry[dbType]
+	initES()
+	create, ok := retrieverRegistry[name]
 	if !ok {
-		return nil, fmt.Errorf("未注册的索引器类型: %s", dbType)
+		return nil, fmt.Errorf("未注册的索引器类型: %s", name)
 	}
 
 	return create(ctx)

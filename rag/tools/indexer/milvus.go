@@ -38,7 +38,7 @@ func initMilvus() {
 			log.Printf("检查集合维度失败: %v", err)
 		}
 
-		indexer, err := milvus.NewIndexer(ctx, buildIndexerConfig(dim))
+		indexer, err := milvus.NewIndexer(ctx, buildMilvusIndexerConfig(dim))
 		if err != nil {
 			// 自动处理 schema 不匹配：删除旧集合并重建
 			if strings.Contains(err.Error(), "collection schema not match") {
@@ -53,7 +53,7 @@ func initMilvus() {
 					log.Printf("旧集合仍存在，改用新集合: %s", newName)
 					config.Cfg.MilvusConf.CollectionName = newName
 				}
-				indexer, err = milvus.NewIndexer(ctx, buildIndexerConfig(dim))
+				indexer, err = milvus.NewIndexer(ctx, buildMilvusIndexerConfig(dim))
 				if err != nil {
 					return nil, err
 				}
@@ -66,7 +66,7 @@ func initMilvus() {
 	})
 }
 
-func buildIndexerConfig(dim int) *milvus.IndexerConfig {
+func buildMilvusIndexerConfig(dim int) *milvus.IndexerConfig {
 	return &milvus.IndexerConfig{
 		Client:     db.Milvus,
 		Embedding:  embedding_model.Embedding,
