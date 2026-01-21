@@ -43,10 +43,7 @@ func main() {
 	}
 
 	// 初始化检索器
-	indexer.Indexer, err = indexer.NewIndexer(ctx)
-	if err != nil {
-		log.Fatalf("indexer init fail: %v", err)
-	}
+	indexer.NewIndexer()
 
 	// 初始化召回器
 	retriever.NewRetriever()

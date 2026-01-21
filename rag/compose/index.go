@@ -17,6 +17,7 @@ func BuildIndexingGraph(ctx context.Context) (compose.Runnable[document.Source, 
 		FileLoader     = "FileLoader"
 		TextSplitter   = "TextSplitter"
 		MilvusIndexer  = "MilvusIndexer"
+		ESIndexer      = "ESIndexer"
 		DocumentParser = "DocumentParser"
 		DebugChunks    = "DebugChunks"
 	)
@@ -24,10 +25,20 @@ func BuildIndexingGraph(ctx context.Context) (compose.Runnable[document.Source, 
 	// 创建图
 	g := compose.NewGraph[document.Source, []string]()
 
+	milvus, err := indexer.GetIndexer(ctx, "milvus")
+	if err != nil {
+		return nil, err
+	}
+	es, err := indexer.GetIndexer(ctx, "es")
+	if err != nil {
+		return nil, err
+	}
+
 	// 添加节点
 	_ = g.AddLoaderNode(FileLoader, tools.Loader)
 	_ = g.AddDocumentTransformerNode(TextSplitter, tools.Splitter)
-	_ = g.AddIndexerNode(MilvusIndexer, indexer.Indexer)
+	_ = g.AddIndexerNode(MilvusIndexer, milvus)
+	_ = g.AddIndexerNode(ESIndexer, es)
 	_ = g.AddLambdaNode(DocumentParser, compose.InvokableLambda(BuildParseNode))
 	_ = g.AddLambdaNode(DebugChunks, compose.InvokableLambda(func(ctx context.Context, docs []*schema.Document) ([]*schema.Document, error) {
 		for i, doc := range docs {
@@ -46,7 +57,9 @@ func BuildIndexingGraph(ctx context.Context) (compose.Runnable[document.Source, 
 	_ = g.AddEdge(DocumentParser, TextSplitter)
 	_ = g.AddEdge(TextSplitter, DebugChunks)
 	_ = g.AddEdge(DebugChunks, MilvusIndexer)
+	_ = g.AddEdge(DebugChunks, ESIndexer)
 	_ = g.AddEdge(MilvusIndexer, compose.END)
+	_ = g.AddEdge(ESIndexer, compose.END)
 
 	// 编译图
 	r, err := g.Compile(
