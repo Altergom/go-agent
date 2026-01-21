@@ -29,3 +29,12 @@ func NewEmbeddingModel(ctx context.Context) (embedding.Embedder, error) {
 func registerEmbeddingModel(name string, factory EmbeddingModelFactory) {
 	embeddingModelRegistry[name] = factory
 }
+
+func GetEmbeddingModel(ctx context.Context, name string) (embedding.Embedder, error) {
+	create, ok := embeddingModelRegistry[name]
+	if !ok {
+		return nil, fmt.Errorf("不支持的 EmbeddingModel 类型: %s", name)
+	}
+
+	return create(ctx)
+}

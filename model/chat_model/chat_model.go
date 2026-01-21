@@ -30,3 +30,12 @@ func NewChatModel(ctx context.Context) (model.BaseChatModel, error) {
 func registerChatModel(name string, factory ChatModelFactory) {
 	chatModelRegistry[name] = factory
 }
+
+func GetChatModel(ctx context.Context, name string) (model.BaseChatModel, error) {
+	create, ok := chatModelRegistry[config.Cfg.ChatModelType]
+	if !ok {
+		return nil, fmt.Errorf("不支持的 ChatModel 类型: %s", config.Cfg.ChatModelType)
+	}
+
+	return create(ctx)
+}
