@@ -6,9 +6,14 @@ import (
 	"go-agent/config"
 	"go-agent/model/chat_model"
 	"go-agent/rag/compose"
+	"go-agent/tool/sft"
 	"log"
 	"net/http"
 	"strconv"
+
+	"github.com/cloudwego/eino/callbacks"
+	"github.com/cloudwego/eino/components"
+	compose2 "github.com/cloudwego/eino/compose"
 
 	"github.com/cloudwego/eino/components/prompt"
 	"github.com/cloudwego/eino/schema"
@@ -32,7 +37,6 @@ type RAGAskResponse struct {
 
 // RAGAsk 处理 RAG 提问（从知识库检索并回答）
 func RAGAsk(c *gin.Context) {
-	ctx := context.Background()
 
 	// 获取用户问题
 	var req RAGAskRequest
@@ -53,10 +57,27 @@ func RAGAsk(c *gin.Context) {
 		return
 	}
 
+	// 获取基础 ctx
+	baseCtx := c.Request.Context()
+
+	// 初始化 SFT 处理器
+	sftHandler := &sft.SFTHandler{AgentID: "rag_specialist"}
+
+	// 构造统一的 SFT 上下文
+	// 将用户原始问题存入，供 SFTHandler 最终汇总
+	sftCtx := context.WithValue(baseCtx, "sft_input_msgs", []*schema.Message{schema.UserMessage(req.Query)})
+
+	// 初始化 Callback 链路
+	runInfo := &callbacks.RunInfo{
+		Name:      "RAGFlow",
+		Component: components.ComponentOfChatModel,
+	}
+	sftCtx = callbacks.InitCallbacks(sftCtx, runInfo, sftHandler)
+
 	log.Printf("开始执行 RAG 检索，问题: %s", req.Query)
 
 	// 构建检索图
-	retrieverRunner, err := compose.BuildRetrieverGraph(ctx)
+	retrieverRunner, err := compose.BuildRetrieverGraph(sftCtx)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, RAGAskResponse{
 			Success: false,
@@ -66,7 +87,7 @@ func RAGAsk(c *gin.Context) {
 	}
 
 	// 执行检索（输入 query string，输出 []*schema.Document）
-	docs, err := retrieverRunner.Invoke(ctx, req.Query)
+	docs, err := retrieverRunner.Invoke(sftCtx, req.Query, compose2.WithCallbacks(sftHandler))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, RAGAskResponse{
 			Success: false,
@@ -168,7 +189,7 @@ func RAGAsk(c *gin.Context) {
 	}
 
 	// 构建提示词并调用 ChatModel
-	answer, err := generateRAGAnswer(ctx, req.Query, documentsText)
+	answer, err := generateRAGAnswer(sftCtx, req.Query, documentsText)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, RAGAskResponse{
 			Success: false,
