@@ -9,6 +9,7 @@ import (
 	"go-agent/rag/tools"
 	"go-agent/rag/tools/db"
 	"go-agent/rag/tools/indexer"
+	"go-agent/rag/tools/retriever"
 	"log"
 )
 
@@ -46,6 +47,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("indexer init fail: %v", err)
 	}
+
+	// 初始化召回器
+	retriever.NewRetriever()
 
 	// 初始化解析器
 	tools.Parser, err = tools.NewParser(ctx)

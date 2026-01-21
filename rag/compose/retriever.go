@@ -22,11 +22,11 @@ func BuildRetrieverGraph(ctx context.Context) (compose.Runnable[string, []*schem
 	g := compose.NewGraph[string, []*schema.Document]()
 
 	// 构建召回节点
-	milvus, err := retriever.NewRetriever(ctx, "milvus")
+	milvus, err := retriever.GetRetriever(ctx, "milvus")
 	if err != nil {
 		return nil, err
 	}
-	es, err := retriever.NewRetriever(ctx, "es")
+	es, err := retriever.GetRetriever(ctx, "es")
 	if err != nil {
 		return nil, err
 	}
