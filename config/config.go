@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -65,6 +66,10 @@ func LoadConfig() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	rawAddr := getEnv("ES_ADDRESS", "http://localhost:9200")
+
+	// 按逗号分割成 []string
+	esAddresses := strings.Split(rawAddr, ",")
 
 	config := &Config{
 		ChatModelType:      getEnv("CHAT_MODEL_TYPE", "ark"),
@@ -96,7 +101,7 @@ func LoadConfig() (*Config, error) {
 			TopK:                getEnv("TOPK", "10"),
 		},
 		ESConf: ESConfig{
-			Addresses: []string{getEnv("ES_ADDRESS", "http://localhost:9200")},
+			Addresses: esAddresses,
 			Username:  getEnv("ES_USERNAME", ""),
 			Password:  getEnv("ES_PASSWORD", ""),
 			Index:     getEnv("ES_INDEX", "go_agent_docs"),
