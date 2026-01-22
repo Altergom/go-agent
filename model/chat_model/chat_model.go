@@ -18,6 +18,7 @@ func NewChatModel(ctx context.Context) (model.BaseChatModel, error) {
 	initArk()
 	initOpenAI()
 	initQwen()
+	initDeepSeek()
 	create, ok := chatModelRegistry[config.Cfg.ChatModelType]
 	if !ok {
 		return nil, fmt.Errorf("不支持的 ChatModel 类型: %s", config.Cfg.ChatModelType)
@@ -32,9 +33,9 @@ func registerChatModel(name string, factory ChatModelFactory) {
 }
 
 func GetChatModel(ctx context.Context, name string) (model.BaseChatModel, error) {
-	create, ok := chatModelRegistry[config.Cfg.ChatModelType]
+	create, ok := chatModelRegistry[name]
 	if !ok {
-		return nil, fmt.Errorf("不支持的 ChatModel 类型: %s", config.Cfg.ChatModelType)
+		return nil, fmt.Errorf("不支持的 ChatModel 类型: %s", name)
 	}
 
 	return create(ctx)

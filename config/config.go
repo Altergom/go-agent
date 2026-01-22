@@ -13,9 +13,10 @@ type Config struct {
 	EmbeddingModelType string
 	VectorDBType       string
 
-	ArkConf    ArkConfig
-	OpenAIConf OpenAIConfig
-	QwenConf   QwenConfig
+	ArkConf      ArkConfig
+	OpenAIConf   OpenAIConfig
+	QwenConf     QwenConfig
+	DeepSeekConf DeepSeekConfig
 
 	MilvusConf MilvusConfig
 	ESConf     ESConfig
@@ -38,6 +39,14 @@ type QwenConfig struct {
 	QwenKey       string
 	QwenChatModel string
 	QwenEmbedding string
+}
+
+type DeepSeekConfig struct {
+	BaseUrl           string
+	DeepSeekKey       string
+	DeepSeekChatModel string
+	DeepSeekEmbedding string
+	DeepSeekTimeout   string
 }
 
 type MilvusConfig struct {
@@ -91,6 +100,13 @@ func LoadConfig() (*Config, error) {
 			QwenKey:       getEnv("QWEN_KEY", ""),
 			QwenEmbedding: getEnv("QWEN_EMBEDDING_MODEL", ""),
 			QwenChatModel: getEnv("QWEN_CHAT_MODEL", ""),
+		},
+		DeepSeekConf: DeepSeekConfig{
+			BaseUrl:           getEnv("DeepSeek_BASE_URL", ""),
+			DeepSeekKey:       getEnv("DeepSeek_KEY", ""),
+			DeepSeekTimeout:   getEnv("DeepSeek_TIMEOUT", ""),
+			DeepSeekChatModel: getEnv("DeepSeek_CHAT_MODEL", ""),
+			DeepSeekEmbedding: getEnv("DeepSeek_EMBEDDING_MODEL", ""),
 		},
 		MilvusConf: MilvusConfig{
 			MilvusAddr:          getEnv("MILVUS_ADDR", "localhost:27017"),
