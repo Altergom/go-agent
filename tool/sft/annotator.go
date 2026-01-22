@@ -46,7 +46,9 @@ AI 的回答：
 
 	// 解析模型输出（处理可能的 Markdown 代码块包裹）
 	content := resp.Content
-	content = strings.TrimPrefix(content, "")
+	content = strings.TrimSpace(content)
+	content = strings.TrimPrefix(content, "```json")
+	content = strings.TrimPrefix(content, "```")
 	content = strings.TrimSuffix(content, "```")
 	content = strings.TrimSpace(content)
 
