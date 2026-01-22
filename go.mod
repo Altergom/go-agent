@@ -10,13 +10,17 @@ require (
 	github.com/cloudwego/eino-ext/components/document/transformer/splitter/recursive v0.0.0-20260114111548-9f93a1348a18
 	github.com/cloudwego/eino-ext/components/embedding/ark v0.1.1
 	github.com/cloudwego/eino-ext/components/embedding/openai v0.0.0-20260119032004-acb76fa4e2d5
+	github.com/cloudwego/eino-ext/components/indexer/es8 v0.0.0-20260120090714-cbdb3cd3bc4f
 	github.com/cloudwego/eino-ext/components/indexer/milvus v0.0.0-20260114111548-9f93a1348a18
 	github.com/cloudwego/eino-ext/components/model/ark v0.1.62
 	github.com/cloudwego/eino-ext/components/model/openai v0.1.7
 	github.com/cloudwego/eino-ext/components/model/qwen v0.1.5
+	github.com/cloudwego/eino-ext/components/retriever/es8 v0.0.0-20260120090714-cbdb3cd3bc4f
 	github.com/cloudwego/eino-ext/components/retriever/milvus v0.0.0-20260114111548-9f93a1348a18
 	github.com/cloudwego/eino-ext/libs/acl/openai v0.1.11
+	github.com/elastic/go-elasticsearch/v8 v8.16.0
 	github.com/gin-gonic/gin v1.11.0
+	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
 	github.com/milvus-io/milvus-sdk-go/v2 v2.4.2
 )
@@ -31,16 +35,15 @@ require (
 	github.com/bytedance/sonic v1.14.1 // indirect
 	github.com/bytedance/sonic/loader v0.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
-	github.com/cloudwego/eino-ext/components/indexer/es8 v0.0.0-20260120090714-cbdb3cd3bc4f // indirect
-	github.com/cloudwego/eino-ext/components/retriever/es8 v0.0.0-20260120090714-cbdb3cd3bc4f // indirect
+	github.com/cloudwego/eino-ext/components/model/deepseek v0.1.2 // indirect
 	github.com/cockroachdb/errors v1.12.0 // indirect
 	github.com/cockroachdb/logtags v0.0.0-20230118201751-21c54148d20b // indirect
 	github.com/cockroachdb/redact v1.1.5 // indirect
+	github.com/cohesion-org/deepseek-go v1.3.2 // indirect
 	github.com/dslipak/pdf v0.0.2 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/eino-contrib/jsonschema v1.0.3 // indirect
 	github.com/elastic/elastic-transport-go/v8 v8.8.0 // indirect
-	github.com/elastic/go-elasticsearch/v8 v8.19.1 // indirect
 	github.com/evanphx/json-patch v0.5.2 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.8 // indirect
 	github.com/getsentry/sentry-go v0.27.0 // indirect
@@ -54,7 +57,6 @@ require (
 	github.com/goccy/go-yaml v1.18.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/goph/emperror v0.17.2 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0 // indirect
@@ -72,6 +74,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/nikolalohinski/gonja v1.5.3 // indirect
+	github.com/ollama/ollama v0.6.5 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/quic-go/qpack v0.5.1 // indirect

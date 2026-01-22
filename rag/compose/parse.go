@@ -3,7 +3,7 @@ package compose
 import (
 	"context"
 	"fmt"
-	"go-agent/rag/tools"
+	"go-agent/tool/document"
 	"os"
 	"strings"
 
@@ -27,7 +27,7 @@ func BuildParseNode(ctx context.Context, input []*schema.Document) ([]*schema.Do
 			}
 			defer file.Close()
 
-			parsed, err := tools.Parser.Parse(ctx, file,
+			parsed, err := document.Parser.Parse(ctx, file,
 				parser.WithURI(uri),
 				parser.WithExtraMeta(doc.MetaData),
 			)
@@ -39,7 +39,7 @@ func BuildParseNode(ctx context.Context, input []*schema.Document) ([]*schema.Do
 		} else {
 			// 如果没有 URI，尝试从内容解析
 			reader := strings.NewReader(doc.Content)
-			parsed, err := tools.Parser.Parse(ctx, reader,
+			parsed, err := document.Parser.Parse(ctx, reader,
 				parser.WithExtraMeta(doc.MetaData),
 			)
 			if err != nil {

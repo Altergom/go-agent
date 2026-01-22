@@ -2,28 +2,21 @@ package compose
 
 import (
 	"context"
-	"go-agent/rag/tools"
 	"go-agent/rag/tools/indexer"
-	"log"
 
-	"github.com/cloudwego/eino/components/document"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 )
 
 // BuildIndexingGraph 创建检索图
-func BuildIndexingGraph(ctx context.Context) (compose.Runnable[document.Source, []string], error) {
+func BuildIndexingGraph(ctx context.Context) (compose.Runnable[[]*schema.Document, []string], error) {
 	const (
-		FileLoader     = "FileLoader"
-		TextSplitter   = "TextSplitter"
-		MilvusIndexer  = "MilvusIndexer"
-		ESIndexer      = "ESIndexer"
-		DocumentParser = "DocumentParser"
-		DebugChunks    = "DebugChunks"
+		MilvusIndexer = "MilvusIndexer"
+		ESIndexer     = "ESIndexer"
 	)
 
 	// 创建图
-	g := compose.NewGraph[document.Source, []string]()
+	g := compose.NewGraph[[]*schema.Document, []string]()
 
 	milvus, err := indexer.GetIndexer(ctx, "milvus")
 	if err != nil {
@@ -35,29 +28,12 @@ func BuildIndexingGraph(ctx context.Context) (compose.Runnable[document.Source, 
 	}
 
 	// 添加节点
-	_ = g.AddLoaderNode(FileLoader, tools.Loader)
-	_ = g.AddDocumentTransformerNode(TextSplitter, tools.Splitter)
 	_ = g.AddIndexerNode(MilvusIndexer, milvus)
 	_ = g.AddIndexerNode(ESIndexer, es)
-	_ = g.AddLambdaNode(DocumentParser, compose.InvokableLambda(BuildParseNode))
-	_ = g.AddLambdaNode(DebugChunks, compose.InvokableLambda(func(ctx context.Context, docs []*schema.Document) ([]*schema.Document, error) {
-		for i, doc := range docs {
-			contentPreview := doc.Content
-			if len(contentPreview) > 200 {
-				contentPreview = contentPreview[:200] + "..."
-			}
-			log.Printf("待嵌入chunk[%d] ID=%s content=%q metadata=%v", i, doc.ID, contentPreview, doc.MetaData)
-		}
-		return docs, nil
-	}))
 
 	// 添加边
-	_ = g.AddEdge(compose.START, FileLoader)
-	_ = g.AddEdge(FileLoader, DocumentParser)
-	_ = g.AddEdge(DocumentParser, TextSplitter)
-	_ = g.AddEdge(TextSplitter, DebugChunks)
-	_ = g.AddEdge(DebugChunks, MilvusIndexer)
-	_ = g.AddEdge(DebugChunks, ESIndexer)
+	_ = g.AddEdge(compose.START, MilvusIndexer)
+	_ = g.AddEdge(compose.START, ESIndexer)
 	_ = g.AddEdge(MilvusIndexer, compose.END)
 	_ = g.AddEdge(ESIndexer, compose.END)
 

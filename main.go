@@ -6,10 +6,10 @@ import (
 	"go-agent/config"
 	"go-agent/model/chat_model"
 	"go-agent/model/embedding_model"
-	"go-agent/rag/tools"
 	"go-agent/rag/tools/db"
 	"go-agent/rag/tools/indexer"
 	"go-agent/rag/tools/retriever"
+	"go-agent/tool/document"
 	"log"
 )
 
@@ -49,19 +49,19 @@ func main() {
 	retriever.NewRetriever()
 
 	// 初始化解析器
-	tools.Parser, err = tools.NewParser(ctx)
+	document.Parser, err = document.NewParser(ctx)
 	if err != nil {
 		log.Fatalf("parser init fail: %v", err)
 	}
 
 	// 初始化载入器
-	tools.Loader, err = tools.NewLoader(ctx)
+	document.Loader, err = document.NewLoader(ctx)
 	if err != nil {
 		log.Fatalf("loader init fail: %v", err)
 	}
 
 	// 初始化切分器
-	tools.Splitter, err = tools.NewSplitter(ctx)
+	document.Splitter, err = document.NewSplitter(ctx)
 	if err != nil {
 		log.Fatalf("splitter init fail: %v", err)
 	}
