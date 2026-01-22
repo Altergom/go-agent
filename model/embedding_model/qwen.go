@@ -24,7 +24,8 @@ type EmbeddingConfig struct {
 	Timeout    time.Duration `json:"timeout"`
 	HTTPClient *http.Client  `json:"http_client"`
 	Model      string        `json:"model"`
-	Dimensions *int          `json:"dimensions,omitempty"`
+	// TODO 因为vllm不支持千问3的MRL，自定义维度会导致使用千问3报错。暂时屏蔽等待vllm支持
+	//Dimensions *int          `json:"dimensions,omitempty"`
 }
 
 type Embedder struct {
@@ -49,7 +50,7 @@ func NewEmbedder(ctx context.Context, config *EmbeddingConfig) (*Embedder, error
 		BaseURL:    config.BaseURL,
 		HTTPClient: httpClient,
 		Model:      config.Model,
-		Dimensions: &defaultDim,
+		//Dimensions: &defaultDim,
 	}
 
 	cli, err := openai.NewEmbeddingClient(ctx, cfg)
