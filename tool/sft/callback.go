@@ -49,6 +49,11 @@ func (h *SFTHandler) OnEnd(ctx context.Context, info *callbacks.RunInfo, output 
 
 		// 存储到数据仓库
 		GetManager().SaveSample(sample)
+
+		if err := Annotate(context.Background(), sample); err == nil {
+			// 3. 更新已标注的样本
+			GetManager().SaveSample(sample) // 再次调用 SaveSample 会追加或更新
+		}
 	}()
 
 	return ctx
