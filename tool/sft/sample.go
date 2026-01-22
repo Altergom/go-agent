@@ -16,5 +16,8 @@ type Sample struct {
 	TeacherScore     float64           `json:"teacher_score"`    // 教师打分
 	TeacherReasoning string            `json:"teacher_response"` // 教师打分理由
 	IsAnnotated      bool              `json:"is_annotated"`     // 是否已标注
+	IsSpeculative    bool              `json:"is_speculative"`   // 是否启用了投机采样
+	SpecHitRate      float64           `json:"spec_hit_rate"`    // 投机命中率
+	InferenceMs      int64             `json:"inference_ms"`     // 总推理耗时
 	Timestamp        int64             `json:"timestamp"`
 }
