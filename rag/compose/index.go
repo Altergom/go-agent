@@ -3,20 +3,25 @@ package compose
 import (
 	"context"
 	"go-agent/rag/tools/indexer"
+	document2 "go-agent/tool/document"
+
+	"github.com/cloudwego/eino/components/document"
 
 	"github.com/cloudwego/eino/compose"
-	"github.com/cloudwego/eino/schema"
 )
 
 // BuildIndexingGraph 创建检索图
-func BuildIndexingGraph(ctx context.Context) (compose.Runnable[[]*schema.Document, []string], error) {
+func BuildIndexingGraph(ctx context.Context) (compose.Runnable[document.Source, []string], error) {
 	const (
-		MilvusIndexer = "MilvusIndexer"
-		ESIndexer     = "ESIndexer"
+		Milvus   = "Milvus"
+		ES       = "ES"
+		Splitter = "Splitter"
+		Parser   = "Parser"
+		Loader   = "Loader"
 	)
 
 	// 创建图
-	g := compose.NewGraph[[]*schema.Document, []string]()
+	g := compose.NewGraph[document.Source, []string]()
 
 	milvus, err := indexer.GetIndexer(ctx, "milvus")
 	if err != nil {
@@ -28,14 +33,29 @@ func BuildIndexingGraph(ctx context.Context) (compose.Runnable[[]*schema.Documen
 	}
 
 	// 添加节点
-	_ = g.AddIndexerNode(MilvusIndexer, milvus)
-	_ = g.AddIndexerNode(ESIndexer, es)
+	_ = g.AddLoaderNode(Loader, document2.Loader)
+	_ = g.AddLambdaNode(Parser, compose.InvokableLambda(BuildParseNode))
+	_ = g.AddDocumentTransformerNode(Splitter, document2.Splitter)
+	_ = g.AddIndexerNode(Milvus, milvus, compose.WithOutputKey("milvus_res"))
+	_ = g.AddIndexerNode(ES, es, compose.WithOutputKey("es_res"))
+	_ = g.AddLambdaNode("Merge", compose.InvokableLambda(func(ctx context.Context, input map[string]any) ([]string, error) {
+		var allIDs []string
+		for _, ids := range input {
+			i, _ := ids.([]string)
+			allIDs = append(allIDs, i...)
+		}
+		return allIDs, nil
+	}))
 
-	// 添加边
-	_ = g.AddEdge(compose.START, MilvusIndexer)
-	_ = g.AddEdge(compose.START, ESIndexer)
-	_ = g.AddEdge(MilvusIndexer, compose.END)
-	_ = g.AddEdge(ESIndexer, compose.END)
+	// 设置边
+	_ = g.AddEdge(compose.START, Loader)
+	_ = g.AddEdge(Loader, Parser)
+	_ = g.AddEdge(Parser, Splitter)
+	_ = g.AddEdge(Splitter, Milvus)
+	_ = g.AddEdge(Splitter, ES)
+	_ = g.AddEdge(Milvus, "Merge")
+	_ = g.AddEdge(ES, "Merge")
+	_ = g.AddEdge("Merge", compose.END)
 
 	// 编译图
 	r, err := g.Compile(

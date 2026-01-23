@@ -13,8 +13,9 @@ import (
 
 func initES() {
 	registerIndexer("es", func(ctx context.Context) (indexer.Indexer, error) {
+		var err error
 		if db.ES == nil {
-			if _, err := db.NewES(); err != nil {
+			if db.ES, err = db.NewES(); err != nil {
 				return nil, err
 			}
 		}

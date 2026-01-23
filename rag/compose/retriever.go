@@ -30,9 +30,63 @@ func BuildRetrieverGraph(ctx context.Context) (compose.Runnable[string, []*schem
 	if err != nil {
 		return nil, err
 	}
-	_ = g.AddRetrieverNode(MilvusRetriever, milvus)
-	_ = g.AddRetrieverNode(ESRetriever, es)
-	_ = g.AddLambdaNode(Reranker, compose.InvokableLambda(RRF))
+	_ = g.AddRetrieverNode(MilvusRetriever, milvus, compose.WithOutputKey("milvus_retriever"))
+	_ = g.AddRetrieverNode(ESRetriever, es, compose.WithOutputKey("es_retriever"))
+	_ = g.AddLambdaNode(Reranker, compose.InvokableLambda(func(ctx context.Context, input map[string]any) ([]*schema.Document, error) {
+		// RRF 混合检索重排算法
+		// 具体讲解见algorithm/rrf.go
+		const k = 60
+		docScores := make(map[string]float64)
+		docMap := make(map[string]*schema.Document)
+
+		for _, val := range input {
+			docs, ok := val.([]*schema.Document)
+			if !ok {
+				continue
+			}
+
+			for rank, doc := range docs {
+				id := doc.ID
+				if id == "" {
+					continue
+				}
+
+				// 标准 RRF 公式: 1 / (k + rank)
+				score := 1.0 / float64(k+rank+1)
+				docScores[id] += score
+
+				// 如果文档在多路中重复出现，保留分数较高的原始对象
+				if oldDoc, exists := docMap[id]; !exists || doc.Score() > oldDoc.Score() {
+					docMap[id] = doc
+				}
+			}
+		}
+
+		// 将结果汇总并排序
+		results := make([]*schema.Document, 0, len(docMap))
+		for id, score := range docScores {
+			doc := docMap[id]
+			doc.WithScore(score)
+			results = append(results, doc)
+		}
+
+		sort.Slice(results, func(i, j int) bool {
+			return results[i].Score() > results[j].Score()
+		})
+
+		topk := 10
+		if config.Cfg != nil && config.Cfg.MilvusConf.TopK != "" {
+			if val, err := strconv.Atoi(config.Cfg.MilvusConf.TopK); err == nil {
+				topk = val
+			}
+		}
+
+		if len(results) > topk {
+			results = results[:topk]
+		}
+
+		return results, nil
+	}))
 
 	// 构建节点指向
 	_ = g.AddEdge(compose.START, MilvusRetriever)
@@ -51,46 +105,4 @@ func BuildRetrieverGraph(ctx context.Context) (compose.Runnable[string, []*schem
 	}
 
 	return r, nil
-}
-
-// RRF 混合检索重排算法
-// 具体讲解见algorithm/rrf.go
-func RRF(ctx context.Context, inputs [][]*schema.Document) ([]*schema.Document, error) {
-	const k = 60
-	docScores := make(map[string]float64)
-	// docMap ID-对象映射
-	docMap := make(map[string]*schema.Document)
-
-	// 遍历每一路召回的结果 (例如 inputs[0] 是 Milvus, inputs[1] 是 ES)
-	for _, docs := range inputs {
-		for rank, doc := range docs {
-			id := doc.ID
-			if id == "" {
-				continue
-			}
-
-			score := 1.0 / float64(k+rank+1)
-			docScores[id] += score
-
-			// 如果 ID 重复，保留评分较高的那一版元数据
-			if _, exists := docMap[id]; !exists {
-				docMap[id] = doc
-			}
-		}
-	}
-
-	results := make([]*schema.Document, 0, len(docMap))
-	for id, score := range docScores {
-		doc := docMap[id]
-		doc.WithScore(score)
-		results = append(results, doc)
-	}
-
-	// 按照 RRF 分数从高到低排序
-	sort.Slice(results, func(i, j int) bool {
-		return results[i].Score() > results[j].Score()
-	})
-
-	topk, _ := strconv.Atoi(config.Cfg.MilvusConf.TopK)
-	return results[:topk], nil
 }

@@ -25,7 +25,7 @@ type InsertDocumentResponse struct {
 func InsertDocument(c *gin.Context) {
 	ctx := context.Background()
 
-	// 1. 获取上传的文件
+	// 获取上传的文件
 	file, err := c.FormFile("file")
 	if err != nil {
 		c.JSON(400, InsertDocumentResponse{
@@ -35,7 +35,7 @@ func InsertDocument(c *gin.Context) {
 		return
 	}
 
-	// 2. 验证文件大小（例如：限制 50MB）
+	// 验证文件大小
 	const maxFileSize = 50 << 20 // 50MB
 	if file.Size > maxFileSize {
 		c.JSON(400, InsertDocumentResponse{
@@ -45,7 +45,7 @@ func InsertDocument(c *gin.Context) {
 		return
 	}
 
-	// 3. 创建临时目录保存文件
+	// 创建临时目录保存文件
 	tempDir := filepath.Join(os.TempDir(), "go-agent-uploads")
 	if err := os.MkdirAll(tempDir, 0755); err != nil {
 		log.Printf("创建临时目录失败: %v", err)
@@ -56,12 +56,12 @@ func InsertDocument(c *gin.Context) {
 		return
 	}
 
-	// 4. 生成唯一文件名
+	// 生成唯一文件名
 	timestamp := time.Now().UnixNano()
 	fileName := fmt.Sprintf("%d_%s", timestamp, file.Filename)
 	tempFilePath := filepath.Join(tempDir, fileName)
 
-	// 5. 保存上传的文件
+	// 保存上传的文件
 	src, err := file.Open()
 	if err != nil {
 		c.JSON(500, InsertDocumentResponse{
@@ -95,29 +95,23 @@ func InsertDocument(c *gin.Context) {
 	dst.Close()
 	src.Close()
 
-	// 6. 确保在处理完成后删除临时文件
+	// 确保在处理完成后删除临时文件
 	defer func() {
 		if err := os.Remove(tempFilePath); err != nil {
 			log.Printf("删除临时文件失败: %v, 文件路径: %s", err, tempFilePath)
 		}
 	}()
 
-	// 7. 构建索引图
 	indexingRunner, err := compose.BuildIndexingGraph(ctx)
 	if err != nil {
-		c.JSON(500, InsertDocumentResponse{
-			Success: false,
-			Message: fmt.Sprintf("构建索引图失败: %v", err),
-		})
 		return
 	}
-
-	// 8. 创建文档源并执行索引
+	// 创建文档源并执行索引
 	docSource := document.Source{
 		URI: tempFilePath,
 	}
 
-	// 9. 执行索引流程
+	// 执行索引流程
 	documentIDs, err := indexingRunner.Invoke(ctx, docSource)
 	if err != nil {
 		c.JSON(500, InsertDocumentResponse{
@@ -127,7 +121,7 @@ func InsertDocument(c *gin.Context) {
 		return
 	}
 
-	// 10. 返回成功响应
+	// 返回成功响应
 	c.JSON(200, InsertDocumentResponse{
 		Success:     true,
 		Message:     fmt.Sprintf("文档 '%s' 索引成功", file.Filename),

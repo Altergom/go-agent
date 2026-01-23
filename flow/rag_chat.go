@@ -28,6 +28,14 @@ type internalState struct {
 }
 
 func BuildRAGChatFlow(ctx context.Context, store memory.Store, taskModel model.BaseChatModel) (compose.Runnable[RAGChatInput, *schema.Message], error) {
+	const (
+		PreProcess   = "preProcess"
+		Rewrite      = "rewrite"
+		Retrieve     = "retrieve"
+		Chat         = "chat"
+		FormatOutput = "formatOutput"
+	)
+
 	qr := &rewriter.QueryRewriter{Model: taskModel}
 	sm := &memory.Summarizer{Model: taskModel, MaxHistoryLen: 3}
 
@@ -39,20 +47,20 @@ func BuildRAGChatFlow(ctx context.Context, store memory.Store, taskModel model.B
 	g := compose.NewGraph[RAGChatInput, *schema.Message]()
 
 	// 节点 1: 预处理与加载记忆
-	_ = g.AddLambdaNode("PreProcess", compose.InvokableLambda(func(ctx context.Context, in RAGChatInput) (*internalState, error) {
+	_ = g.AddLambdaNode(PreProcess, compose.InvokableLambda(func(ctx context.Context, in RAGChatInput) (*internalState, error) {
 		sess, _ := store.Get(ctx, in.SessionID)
 		return &internalState{Input: in, Session: sess}, nil
 	}))
 
 	// 节点 2: 查询重写
-	_ = g.AddLambdaNode("Rewrite", compose.InvokableLambda(func(ctx context.Context, state *internalState) (*internalState, error) {
+	_ = g.AddLambdaNode(Rewrite, compose.InvokableLambda(func(ctx context.Context, state *internalState) (*internalState, error) {
 		newQuery, _ := qr.Rephrase(ctx, state.Session.Summary, state.Session.History, state.Input.Query)
 		state.Query = newQuery
 		return state, nil
 	}))
 
 	// 节点 3: 嵌套检索子图
-	_ = g.AddLambdaNode("Retrieve", compose.InvokableLambda(func(ctx context.Context, state *internalState) (*internalState, error) {
+	_ = g.AddLambdaNode(Retrieve, compose.InvokableLambda(func(ctx context.Context, state *internalState) (*internalState, error) {
 		docs, err := retrieverSubGraph.Invoke(ctx, state.Query)
 		if err != nil {
 			return nil, err
@@ -62,7 +70,7 @@ func BuildRAGChatFlow(ctx context.Context, store memory.Store, taskModel model.B
 	}))
 
 	// 节点 4: 核心对话生成
-	_ = g.AddLambdaNode("Chat", compose.InvokableLambda(func(ctx context.Context, state *internalState) (*internalState, error) {
+	_ = g.AddLambdaNode(Chat, compose.InvokableLambda(func(ctx context.Context, state *internalState) (*internalState, error) {
 		messages := make([]*schema.Message, 0)
 		// 注入长期记忆
 		if state.Session.Summary != "" {
@@ -98,21 +106,19 @@ func BuildRAGChatFlow(ctx context.Context, store memory.Store, taskModel model.B
 	}))
 
 	// 节点 5: 类型转换节点
-	_ = g.AddLambdaNode("FormatOutput", compose.InvokableLambda(func(ctx context.Context, state *internalState) (*schema.Message, error) {
+	_ = g.AddLambdaNode(FormatOutput, compose.InvokableLambda(func(ctx context.Context, state *internalState) (*schema.Message, error) {
 		if len(state.Session.History) == 0 {
 			return nil, fmt.Errorf("empty history")
 		}
 		return state.Session.History[len(state.Session.History)-1], nil
 	}))
 
-	// 连边
-	_ = g.AddEdge(compose.START, "PreProcess")
-	_ = g.AddEdge("PreProcess", "Rewrite")
-	_ = g.AddEdge("Rewrite", "Retrieve")
-	_ = g.AddEdge("Retrieve", "Chat")
-	_ = g.AddEdge("Chat", compose.END)
+	_ = g.AddEdge(compose.START, PreProcess)
+	_ = g.AddEdge(PreProcess, Rewrite)
+	_ = g.AddEdge(Rewrite, Retrieve)
+	_ = g.AddEdge(Retrieve, Chat)
+	_ = g.AddEdge(Chat, FormatOutput)
+	_ = g.AddEdge(FormatOutput, compose.END)
 
-	// 编译并提取最终结果
 	return g.Compile(ctx, compose.WithGraphName("RAGGraph"))
-
 }
