@@ -2,7 +2,6 @@ package flow
 
 import (
 	"context"
-	"fmt"
 	"go-agent/model/chat_model"
 	"go-agent/tool/memory"
 	"go-agent/tool/rewriter"
@@ -19,8 +18,8 @@ type RAGChatInput struct {
 	Query     string
 }
 
-// internalState 用于在图节点间传递复杂的中间状态
-type internalState struct {
+// GraphState 存储图运行时的状态
+type GraphState struct {
 	Input   RAGChatInput
 	Session *memory.Session
 	Query   string
@@ -29,11 +28,10 @@ type internalState struct {
 
 func BuildRAGChatFlow(ctx context.Context, store memory.Store, taskModel model.BaseChatModel) (compose.Runnable[RAGChatInput, *schema.Message], error) {
 	const (
-		PreProcess   = "preProcess"
-		Rewrite      = "rewrite"
-		Retrieve     = "retrieve"
-		Chat         = "chat"
-		FormatOutput = "formatOutput"
+		PreProcess = "preProcess"
+		Rewrite    = "rewrite"
+		Retrieve   = "retrieve"
+		Chat       = "chat"
 	)
 
 	qr := &rewriter.QueryRewriter{Model: taskModel}
@@ -44,81 +42,102 @@ func BuildRAGChatFlow(ctx context.Context, store memory.Store, taskModel model.B
 		return nil, err
 	}
 
-	g := compose.NewGraph[RAGChatInput, *schema.Message]()
+	g := compose.NewGraph[RAGChatInput, *schema.Message](
+		compose.WithGenLocalState(func(ctx context.Context) *GraphState {
+			return &GraphState{}
+		}),
+	)
 
-	// 节点 1: 预处理与加载记忆
-	_ = g.AddLambdaNode(PreProcess, compose.InvokableLambda(func(ctx context.Context, in RAGChatInput) (*internalState, error) {
-		sess, _ := store.Get(ctx, in.SessionID)
-		return &internalState{Input: in, Session: sess}, nil
+	_ = g.AddLambdaNode(PreProcess, compose.InvokableLambda(func(ctx context.Context, in RAGChatInput) (RAGChatInput, error) {
+		_ = compose.ProcessState[*GraphState](ctx, func(ctx context.Context, state *GraphState) error {
+			state.Input = in
+			sess, _ := store.Get(ctx, in.SessionID)
+			state.Session = sess
+			return nil
+		})
+		return in, nil
 	}))
 
-	// 节点 2: 查询重写
-	_ = g.AddLambdaNode(Rewrite, compose.InvokableLambda(func(ctx context.Context, state *internalState) (*internalState, error) {
-		newQuery, _ := qr.Rephrase(ctx, state.Session.Summary, state.Session.History, state.Input.Query)
-		state.Query = newQuery
-		return state, nil
+	_ = g.AddLambdaNode(Rewrite, compose.InvokableLambda(func(ctx context.Context, in RAGChatInput) (string, error) {
+		var query string
+		_ = compose.ProcessState[*GraphState](ctx, func(ctx context.Context, state *GraphState) error {
+			if len(state.Session.History) == 0 && state.Session.Summary == "" {
+				state.Query = in.Query
+				query = in.Query
+				return nil
+			}
+
+			newQuery, err := qr.Rephrase(ctx, state.Session.Summary, state.Session.History, in.Query)
+			if err != nil {
+				state.Query = in.Query
+				query = in.Query
+				return nil
+			}
+			state.Query = newQuery
+			query = newQuery
+			return nil
+		})
+		return query, nil
 	}))
 
-	// 节点 3: 嵌套检索子图
-	_ = g.AddLambdaNode(Retrieve, compose.InvokableLambda(func(ctx context.Context, state *internalState) (*internalState, error) {
-		docs, err := retrieverSubGraph.Invoke(ctx, state.Query)
+	_ = g.AddLambdaNode(Retrieve, compose.InvokableLambda(func(ctx context.Context, query string) ([]*schema.Document, error) {
+		docs, err := retrieverSubGraph.Invoke(ctx, query)
 		if err != nil {
 			return nil, err
 		}
-		state.Docs = docs
-		return state, nil
+		_ = compose.ProcessState[*GraphState](ctx, func(ctx context.Context, state *GraphState) error {
+			state.Docs = docs
+			return nil
+		})
+		return docs, nil
 	}))
 
-	// 节点 4: 核心对话生成
-	_ = g.AddLambdaNode(Chat, compose.InvokableLambda(func(ctx context.Context, state *internalState) (*internalState, error) {
-		messages := make([]*schema.Message, 0)
-		// 注入长期记忆
-		if state.Session.Summary != "" {
-			messages = append(messages, schema.SystemMessage("背景摘要: "+state.Session.Summary))
-		}
-		// 注入短期记忆
-		messages = append(messages, state.Session.History...)
+	// []*schema.Document转为[]*schema.Message
+	_ = g.AddLambdaNode("ConstructMessages", compose.InvokableLambda(func(ctx context.Context, docs []*schema.Document) ([]*schema.Message, error) {
+		var messages []*schema.Message
 
-		// 注入检索知识
-		knowledge := "参考知识:\n"
-		for _, doc := range state.Docs {
-			knowledge += doc.Content + "\n"
-		}
-		messages = append(messages, schema.UserMessage(knowledge+state.Input.Query))
+		// 获取状态中的历史和原始输入
+		err := compose.ProcessState[*GraphState](ctx, func(ctx context.Context, state *GraphState) error {
+			if state.Session.Summary != "" {
+				messages = append(messages, schema.SystemMessage("背景摘要: "+state.Session.Summary))
+			}
+			messages = append(messages, state.Session.History...)
 
-		resp, err := chat_model.CM.Generate(ctx, messages)
-		if err != nil {
-			return nil, err
-		}
+			knowledge := "参考知识:\n"
+			for _, doc := range docs {
+				knowledge += doc.Content + "\n"
+			}
+			messages = append(messages, schema.UserMessage(knowledge+state.Input.Query))
+			return nil
+		})
 
-		// 更新历史状态
-		state.Session.History = append(state.Session.History, schema.UserMessage(state.Input.Query))
-		state.Session.History = append(state.Session.History, resp)
-
-		// 自动触发压缩与持久化
-		go func(s *memory.Session) {
-			bgCtx := context.Background()
-			_ = sm.Compress(bgCtx, s)
-			_ = store.Save(bgCtx, s.ID, s)
-		}(state.Session)
-
-		return state, nil
+		return messages, err
 	}))
 
-	// 节点 5: 类型转换节点
-	_ = g.AddLambdaNode(FormatOutput, compose.InvokableLambda(func(ctx context.Context, state *internalState) (*schema.Message, error) {
-		if len(state.Session.History) == 0 {
-			return nil, fmt.Errorf("empty history")
-		}
-		return state.Session.History[len(state.Session.History)-1], nil
-	}))
+	// 对话生成
+	_ = g.AddChatModelNode(Chat, chat_model.CM, compose.WithStatePreHandler(func(ctx context.Context, in []*schema.Message, state *GraphState) ([]*schema.Message, error) {
+		return in, nil
+	}),
+		compose.WithStatePostHandler(func(ctx context.Context, out *schema.Message, state *GraphState) (*schema.Message, error) {
+			state.Session.History = append(state.Session.History, schema.UserMessage(state.Input.Query))
+			state.Session.History = append(state.Session.History, out)
+
+			go func(s *memory.Session) {
+				bgCtx := context.Background()
+				_ = sm.Compress(bgCtx, s)
+				_ = store.Save(bgCtx, s.ID, s)
+			}(state.Session)
+
+			return out, nil
+		}),
+	)
 
 	_ = g.AddEdge(compose.START, PreProcess)
 	_ = g.AddEdge(PreProcess, Rewrite)
 	_ = g.AddEdge(Rewrite, Retrieve)
-	_ = g.AddEdge(Retrieve, Chat)
-	_ = g.AddEdge(Chat, FormatOutput)
-	_ = g.AddEdge(FormatOutput, compose.END)
+	_ = g.AddEdge(Retrieve, "ConstructMessages")
+	_ = g.AddEdge("ConstructMessages", Chat)
+	_ = g.AddEdge(Chat, compose.END)
 
-	return g.Compile(ctx, compose.WithGraphName("RAGGraph"))
+	return g.Compile(ctx, compose.WithGraphName("RAGGraphOptimized"))
 }

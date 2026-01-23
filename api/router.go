@@ -137,6 +137,7 @@ func Run() {
 
 	// RAG 召回问答
 	r.POST("/api/rag/ask", RAGAsk)
+	r.POST("/api/rag/chat/stream", RAGChatStream) // 新增流式接口
 	// Milvus 集合管理
 	r.GET("/api/milvus/collections", ListMilvusCollections)
 	r.DELETE("/api/milvus/collections/:name", DeleteMilvusCollection)
