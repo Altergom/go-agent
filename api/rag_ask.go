@@ -5,6 +5,7 @@ import (
 	"go-agent/model/chat_model"
 	"go-agent/tool/memory"
 
+	"github.com/cloudwego/eino-ext/callbacks/langsmith"
 	"github.com/gin-gonic/gin"
 )
 
@@ -20,14 +21,19 @@ func RAGAsk(c *gin.Context) {
 		req.SessionID = "default_user"
 	}
 
-	ragRunner, err := flow.BuildRAGChatFlow(c.Request.Context(), memStore, chat_model.CM)
+	ctx := langsmith.SetTrace(c.Request.Context(),
+		langsmith.WithSessionName("GoAgent-RAG"),
+		langsmith.AddTag("session:"+req.SessionID),
+	)
+
+	ragRunner, err := flow.BuildRAGChatFlow(ctx, memStore, chat_model.CM)
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
 
 	// 执行
-	answer, err := ragRunner.Invoke(c.Request.Context(), flow.RAGChatInput{
+	answer, err := ragRunner.Invoke(ctx, flow.RAGChatInput{
 		Query:     req.Query,
 		SessionID: req.SessionID,
 	})

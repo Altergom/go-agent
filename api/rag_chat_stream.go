@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 
+	"github.com/cloudwego/eino-ext/callbacks/langsmith"
 	"github.com/gin-gonic/gin"
 )
 
@@ -24,7 +25,11 @@ func RAGChatStream(c *gin.Context) {
 		req.SessionID = "default_user"
 	}
 
-	ctx := c.Request.Context()
+	ctx := langsmith.SetTrace(c.Request.Context(),
+		langsmith.WithSessionName("GoAgent-RAG-Stream"),
+		langsmith.AddTag("session:"+req.SessionID),
+	)
+
 	ragRunner, err := flow.BuildRAGChatFlow(ctx, memStore, chat_model.CM)
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
