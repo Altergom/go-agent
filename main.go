@@ -10,6 +10,7 @@ import (
 	"go-agent/rag/tools/indexer"
 	"go-agent/rag/tools/retriever"
 	"go-agent/tool/document"
+	"go-agent/tool/trace"
 	"log"
 )
 
@@ -64,6 +65,12 @@ func main() {
 	document.Splitter, err = document.NewSplitter(ctx)
 	if err != nil {
 		log.Fatalf("splitter init fail: %v", err)
+	}
+
+	// 初始化langsmith
+	err = trace.NewLangSmith()
+	if err != nil {
+		log.Fatalf("langsmith init fail: %v", err)
 	}
 
 	api.Run()

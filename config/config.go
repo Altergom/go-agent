@@ -20,6 +20,8 @@ type Config struct {
 
 	MilvusConf MilvusConfig
 	ESConf     ESConfig
+
+	LangSmithConf LangSmithConfig
 }
 
 type ArkConfig struct {
@@ -65,6 +67,11 @@ type ESConfig struct {
 	CloudID   string
 	APIKey    string
 	Index     string
+}
+
+type LangSmithConfig struct {
+	APIKey string
+	APIUrl string
 }
 
 var Cfg *Config
@@ -121,6 +128,10 @@ func LoadConfig() (*Config, error) {
 			Username:  getEnv("ES_USERNAME", ""),
 			Password:  getEnv("ES_PASSWORD", ""),
 			Index:     getEnv("ES_INDEX", "go_agent_docs"),
+		},
+		LangSmithConf: LangSmithConfig{
+			APIKey: getEnv("LANG_SMITH_KEY", ""),
+			APIUrl: getEnv("LANG_SMITH_URL", ""),
 		},
 	}
 
