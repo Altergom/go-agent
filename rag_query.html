@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG 文档查询系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: rgba(102, 126, 234, 0.1);
+            padding: 20px 30px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            color: #303133;
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            color: #606266;
+            font-size: 14px;
+        }
+
+        .main-content {
+            padding: 30px;
+        }
+
+        .upload-section {
+            background: #f5f7fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #303133;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .form-group input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            border: 2px dashed #dcdfe6;
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .form-group input[type="file"]:hover {
+            border-color: #667eea;
+            background: #f0f2f5;
+        }
+
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #dcdfe6;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+        }
+
+        .file-info {
+            margin-top: 10px;
+            padding: 10px;
+            background: white;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #606266;
+        }
+
+        .file-info strong {
+            color: #303133;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 100%;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result-section {
+            margin-top: 30px;
+        }
+
+        .result-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #e4e7ed;
+        }
+
+        .result-card h3 {
+            color: #303133;
+            font-size: 18px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f2f5;
+        }
+
+        .result-item {
+            margin-bottom: 15px;
+        }
+
+        .result-item label {
+            display: block;
+            color: #909399;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+
+        .result-item .value {
+            color: #303133;
+            font-size: 14px;
+            line-height: 1.6;
+            word-wrap: break-word;
+        }
+
+        .answer-box {
+            background: #f0f9ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+
+        .answer-box .value {
+            color: #303133;
+            font-size: 15px;
+            line-height: 1.8;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #fef0f0;
+            border: 1px solid #fde2e2;
+            color: #f56c6c;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 20px;
+        }
+
+        .success {
+            background: #f0f9ff;
+            border: 1px solid #b3d8ff;
+            color: #409eff;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 20px;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin-top: 15px;
+        }
+
+        .stat-item {
+            flex: 1;
+            background: #f5f7fa;
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .stat-item .number {
+            font-size: 24px;
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .stat-item .label {
+            font-size: 12px;
+            color: #909399;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📚 RAG 文档查询系统</h1>
+            <p>上传文档，提出问题，基于文档内容获得智能回答</p>
+        </div>
+
+        <div class="main-content">
+            <form id="ragForm">
+                <div class="upload-section">
+                    <div class="form-group">
+                        <label for="fileInput">📄 选择文档</label>
+                        <input type="file" id="fileInput" name="file" accept=".pdf,.html,.htm,.txt,.md" required>
+                        <div class="file-info" id="fileInfo" style="display: none;">
+                            <strong>已选择文件：</strong><span id="fileName"></span><br>
+                            <strong>文件大小：</strong><span id="fileSize"></span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="queryInput">❓ 输入您的问题</label>
+                        <textarea 
+                            id="queryInput" 
+                            name="query" 
+                            placeholder="例如：这个文档的主要内容是什么？文档中的关键信息有哪些？" 
+                            required
+                        ></textarea>
+                    </div>
+
+                    <button type="submit" class="btn" id="submitBtn">
+                        🚀 上传并查询
+                    </button>
+                </div>
+            </form>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>正在处理文档并生成回答，请稍候...</p>
+            </div>
+
+            <div id="errorMessage" class="error" style="display: none;"></div>
+            <div id="successMessage" class="success" style="display: none;"></div>
+
+            <div class="result-section" id="resultSection" style="display: none;">
+                <div class="result-card">
+                    <h3>📊 索引信息</h3>
+                    <div class="stats">
+                        <div class="stat-item">
+                            <div class="number" id="chunkCount">0</div>
+                            <div class="label">文档块数量</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="number" id="documentIdCount">0</div>
+                            <div class="label">文档 ID 数量</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="result-card">
+                    <h3>💬 AI 回答</h3>
+                    <div class="result-item">
+                        <label>您的问题</label>
+                        <div class="value" id="queryText"></div>
+                    </div>
+                    <div class="answer-box">
+                        <div class="value" id="answerText"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('ragForm');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+        const submitBtn = document.getElementById('submitBtn');
+        const loading = document.getElementById('loading');
+        const errorMessage = document.getElementById('errorMessage');
+        const successMessage = document.getElementById('successMessage');
+        const resultSection = document.getElementById('resultSection');
+
+        // 文件选择事件
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                fileName.textContent = file.name;
+                fileSize.textContent = formatFileSize(file.size);
+                fileInfo.style.display = 'block';
+            } else {
+                fileInfo.style.display = 'none';
+            }
+        });
+
+        // 格式化文件大小
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        // 表单提交
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const file = fileInput.files[0];
+            const query = document.getElementById('queryInput').value.trim();
+
+            if (!file) {
+                showError('请选择要上传的文档');
+                return;
+            }
+
+            if (!query) {
+                showError('请输入您的问题');
+                return;
+            }
+
+            // 验证文件大小（50MB）
+            const maxSize = 50 * 1024 * 1024;
+            if (file.size > maxSize) {
+                showError('文件大小超过限制（最大 50MB）');
+                return;
+            }
+
+            // 准备表单数据
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('query', query);
+
+            // 显示加载状态
+            setLoading(true);
+            hideError();
+            hideSuccess();
+            hideResult();
+
+            try {
+                const response = await fetch('/api/rag/query', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || data.error || '请求失败');
+                }
+
+                if (data.success) {
+                    showSuccess(data.message);
+                    showResult(data);
+                } else {
+                    throw new Error(data.message || '处理失败');
+                }
+            } catch (error) {
+                showError('请求失败：' + error.message);
+            } finally {
+                setLoading(false);
+            }
+        });
+
+        // 显示/隐藏加载状态
+        function setLoading(show) {
+            if (show) {
+                loading.classList.add('active');
+                submitBtn.disabled = true;
+            } else {
+                loading.classList.remove('active');
+                submitBtn.disabled = false;
+            }
+        }
+
+        // 显示错误信息
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+        }
+
+        // 隐藏错误信息
+        function hideError() {
+            errorMessage.style.display = 'none';
+        }
+
+        // 显示成功信息
+        function showSuccess(message) {
+            successMessage.textContent = message;
+            successMessage.style.display = 'block';
+            setTimeout(() => {
+                successMessage.style.display = 'none';
+            }, 3000);
+        }
+
+        // 隐藏成功信息
+        function hideSuccess() {
+            successMessage.style.display = 'none';
+        }
+
+        // 显示结果
+        function showResult(data) {
+            document.getElementById('queryText').textContent = data.query || '';
+            document.getElementById('answerText').textContent = data.answer || '暂无回答';
+            document.getElementById('chunkCount').textContent = data.chunk_count || 0;
+            document.getElementById('documentIdCount').textContent = data.document_ids ? data.document_ids.length : 0;
+            resultSection.style.display = 'block';
+        }
+
+        // 隐藏结果
+        function hideResult() {
+            resultSection.style.display = 'none';
+        }
+    </script>
+</body>
+</html>

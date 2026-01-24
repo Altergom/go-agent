@@ -3,7 +3,7 @@ package rag_flow
 import (
 	"context"
 	"go-agent/config"
-	"go-agent/rag/tools/retriever"
+	"go-agent/rag/rag_tools/retriever"
 	"sort"
 	"strconv"
 

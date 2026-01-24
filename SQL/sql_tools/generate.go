@@ -1,13 +1,25 @@
-package tools
+package sql_tools
 
 import (
 	"context"
 	"go-agent/model/chat_model"
 
+	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 )
 
+type SQLState struct {
+	Query        string
+	GeneratedSQL string
+	Result       string
+}
+
 func SQLGenerate(ctx context.Context, prompt string) (string, error) {
+	_ = compose.ProcessState[*SQLState](ctx, func(ctx context.Context, state *SQLState) error {
+		state.Query = prompt
+		return nil
+	})
+
 	systemMsg := &schema.Message{
 		Role: schema.System,
 		Content: `你是一个专业的 MySQL 专家。
@@ -34,6 +46,11 @@ func SQLGenerate(ctx context.Context, prompt string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
+	_ = compose.ProcessState[*SQLState](ctx, func(ctx context.Context, state *SQLState) error {
+		state.GeneratedSQL = resp.Content
+		return nil
+	})
 
 	return resp.Content, nil
 }

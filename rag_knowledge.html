@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG 知识库系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: rgba(102, 126, 234, 0.1);
+            padding: 20px 30px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            color: #303133;
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            color: #606266;
+            font-size: 14px;
+        }
+
+        .main-content {
+            padding: 30px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .section {
+            background: #f5f7fa;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .section h2 {
+            color: #303133;
+            font-size: 20px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e4e7ed;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #303133;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .form-group input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            border: 2px dashed #dcdfe6;
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .form-group input[type="file"]:hover {
+            border-color: #667eea;
+            background: #f0f2f5;
+        }
+
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #dcdfe6;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+        }
+
+        .file-info {
+            margin-top: 10px;
+            padding: 10px;
+            background: white;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #606266;
+        }
+
+        .file-info strong {
+            color: #303133;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 100%;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #409eff;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #fef0f0;
+            border: 1px solid #fde2e2;
+            color: #f56c6c;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 20px;
+        }
+
+        .success {
+            background: #f0f9ff;
+            border: 1px solid #b3d8ff;
+            color: #409eff;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 20px;
+        }
+
+        .result-section {
+            margin-top: 20px;
+        }
+
+        .result-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border: 1px solid #e4e7ed;
+        }
+
+        .result-card h3 {
+            color: #303133;
+            font-size: 16px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f2f5;
+        }
+
+        .result-item {
+            margin-bottom: 15px;
+        }
+
+        .result-item label {
+            display: block;
+            color: #909399;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+
+        .result-item .value {
+            color: #303133;
+            font-size: 14px;
+            line-height: 1.6;
+            word-wrap: break-word;
+        }
+
+        .answer-box {
+            background: #f0f9ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+
+        .answer-box .value {
+            color: #303133;
+            font-size: 15px;
+            line-height: 1.8;
+        }
+
+        .stats {
+            display: flex;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .stat-item {
+            flex: 1;
+            background: #f5f7fa;
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .stat-item .number {
+            font-size: 20px;
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .stat-item .label {
+            font-size: 12px;
+            color: #909399;
+            margin-top: 5px;
+        }
+
+        .threshold-warning {
+            background: #fff7e6;
+            border: 1px solid #ffe58f;
+            color: #d46b08;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📚 RAG 知识库系统</h1>
+            <p>上传文档到知识库，然后基于知识库内容回答问题</p>
+        </div>
+
+        <div class="main-content">
+            <!-- 左侧：上传文档区域 -->
+            <div class="section">
+                <h2>📄 上传文档到知识库</h2>
+                <form id="uploadForm">
+                    <div class="form-group">
+                        <label for="fileInput">选择文档</label>
+                        <input type="file" id="fileInput" name="file" accept=".pdf,.html,.htm,.txt,.md">
+                        <div class="file-info" id="fileInfo" style="display: none;">
+                            <strong>已选择文件：</strong><span id="fileName"></span><br>
+                            <strong>文件大小：</strong><span id="fileSize"></span>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn" id="uploadBtn">
+                        📤 上传并索引
+                    </button>
+                </form>
+
+                <div class="loading" id="uploadLoading">
+                    <div class="spinner"></div>
+                    <p>正在索引文档，请稍候...</p>
+                </div>
+
+                <div id="uploadErrorMessage" class="error" style="display: none;"></div>
+                <div id="uploadSuccessMessage" class="success" style="display: none;"></div>
+
+                <div class="result-section" id="uploadResultSection" style="display: none;">
+                    <div class="result-card">
+                        <h3>📊 索引结果</h3>
+                        <div class="stats">
+                            <div class="stat-item">
+                                <div class="number" id="chunkCount">0</div>
+                                <div class="label">文档块数量</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="number" id="documentIdCount">0</div>
+                                <div class="label">文档 ID 数量</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧：提问查询区域 -->
+            <div class="section">
+                <h2>❓ 向知识库提问</h2>
+                <form id="askForm">
+                    <div class="form-group">
+                        <label for="queryInput">输入您的问题</label>
+                        <textarea 
+                            id="queryInput" 
+                            name="query" 
+                            placeholder="例如：这个文档的主要内容是什么？文档中的关键信息有哪些？"
+                            required
+                        ></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-secondary" id="askBtn">
+                        🔍 查询知识库
+                    </button>
+                </form>
+
+                <div class="loading" id="askLoading">
+                    <div class="spinner"></div>
+                    <p>正在检索并生成回答，请稍候...</p>
+                </div>
+
+                <div id="askErrorMessage" class="error" style="display: none;"></div>
+                <div id="askSuccessMessage" class="success" style="display: none;"></div>
+
+                <div class="result-section" id="askResultSection" style="display: none;">
+                    <div class="result-card">
+                        <h3>💬 AI 回答</h3>
+                        <div class="result-item">
+                            <label>您的问题</label>
+                            <div class="value" id="queryText"></div>
+                        </div>
+                        <div class="answer-box">
+                            <div class="value" id="answerText"></div>
+                        </div>
+                        <div id="thresholdWarning" class="threshold-warning" style="display: none;">
+                            ⚠️ 检索到的文档相似度较低，可能无法准确回答您的问题
+                        </div>
+                    </div>
+
+                    <div class="result-card">
+                        <h3>📈 检索统计</h3>
+                        <div class="stats">
+                            <div class="stat-item">
+                                <div class="number" id="retrievedDocs">0</div>
+                                <div class="label">检索到的文档</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="number" id="maxScore">0.00</div>
+                                <div class="label">最高相似度</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========== 上传文档功能 ==========
+        const uploadForm = document.getElementById('uploadForm');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const uploadLoading = document.getElementById('uploadLoading');
+        const uploadErrorMessage = document.getElementById('uploadErrorMessage');
+        const uploadSuccessMessage = document.getElementById('uploadSuccessMessage');
+        const uploadResultSection = document.getElementById('uploadResultSection');
+
+        // 文件选择事件
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                fileName.textContent = file.name;
+                fileSize.textContent = formatFileSize(file.size);
+                fileInfo.style.display = 'block';
+            } else {
+                fileInfo.style.display = 'none';
+            }
+        });
+
+        // 上传表单提交
+        uploadForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const file = fileInput.files[0];
+            if (!file) {
+                showUploadError('请选择要上传的文档');
+                return;
+            }
+
+            // 验证文件大小（50MB）
+            const maxSize = 50 * 1024 * 1024;
+            if (file.size > maxSize) {
+                showUploadError('文件大小超过限制（最大 50MB）');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            setUploadLoading(true);
+            hideUploadError();
+            hideUploadSuccess();
+            hideUploadResult();
+
+            try {
+                const response = await fetch('/api/document/insert', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || data.error || '上传失败');
+                }
+
+                if (data.success) {
+                    showUploadSuccess(data.message);
+                    showUploadResult(data);
+                } else {
+                    throw new Error(data.message || '上传失败');
+                }
+            } catch (error) {
+                showUploadError('上传失败：' + error.message);
+            } finally {
+                setUploadLoading(false);
+            }
+        });
+
+        // ========== 提问查询功能 ==========
+        const askForm = document.getElementById('askForm');
+        const queryInput = document.getElementById('queryInput');
+        const askBtn = document.getElementById('askBtn');
+        const askLoading = document.getElementById('askLoading');
+        const askErrorMessage = document.getElementById('askErrorMessage');
+        const askSuccessMessage = document.getElementById('askSuccessMessage');
+        const askResultSection = document.getElementById('askResultSection');
+
+        // 提问表单提交
+        askForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const query = queryInput.value.trim();
+            if (!query) {
+                showAskError('请输入您的问题');
+                return;
+            }
+
+            setAskLoading(true);
+            hideAskError();
+            hideAskSuccess();
+            hideAskResult();
+
+            try {
+                const response = await fetch('/api/rag/ask', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query: query })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || data.error || '查询失败');
+                }
+
+                if (data.success) {
+                    showAskSuccess(data.message);
+                    showAskResult(data);
+                } else {
+                    throw new Error(data.message || '查询失败');
+                }
+            } catch (error) {
+                showAskError('查询失败：' + error.message);
+            } finally {
+                setAskLoading(false);
+            }
+        });
+
+        // ========== 工具函数 ==========
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        // 上传相关函数
+        function setUploadLoading(show) {
+            if (show) {
+                uploadLoading.classList.add('active');
+                uploadBtn.disabled = true;
+            } else {
+                uploadLoading.classList.remove('active');
+                uploadBtn.disabled = false;
+            }
+        }
+
+        function showUploadError(message) {
+            uploadErrorMessage.textContent = message;
+            uploadErrorMessage.style.display = 'block';
+        }
+
+        function hideUploadError() {
+            uploadErrorMessage.style.display = 'none';
+        }
+
+        function showUploadSuccess(message) {
+            uploadSuccessMessage.textContent = message;
+            uploadSuccessMessage.style.display = 'block';
+            setTimeout(() => {
+                uploadSuccessMessage.style.display = 'none';
+            }, 3000);
+        }
+
+        function hideUploadSuccess() {
+            uploadSuccessMessage.style.display = 'none';
+        }
+
+        function showUploadResult(data) {
+            document.getElementById('chunkCount').textContent = data.chunk_count || 0;
+            document.getElementById('documentIdCount').textContent = data.document_ids ? data.document_ids.length : 0;
+            uploadResultSection.style.display = 'block';
+        }
+
+        function hideUploadResult() {
+            uploadResultSection.style.display = 'none';
+        }
+
+        // 提问相关函数
+        function setAskLoading(show) {
+            if (show) {
+                askLoading.classList.add('active');
+                askBtn.disabled = true;
+            } else {
+                askLoading.classList.remove('active');
+                askBtn.disabled = false;
+            }
+        }
+
+        function showAskError(message) {
+            askErrorMessage.textContent = message;
+            askErrorMessage.style.display = 'block';
+        }
+
+        function hideAskError() {
+            askErrorMessage.style.display = 'none';
+        }
+
+        function showAskSuccess(message) {
+            askSuccessMessage.textContent = message;
+            askSuccessMessage.style.display = 'block';
+            setTimeout(() => {
+                askSuccessMessage.style.display = 'none';
+            }, 3000);
+        }
+
+        function hideAskSuccess() {
+            askSuccessMessage.style.display = 'none';
+        }
+
+        function showAskResult(data) {
+            document.getElementById('queryText').textContent = data.query || '';
+            document.getElementById('answerText').textContent = data.answer || '暂无回答';
+            document.getElementById('retrievedDocs').textContent = data.retrieved_docs || 0;
+            document.getElementById('maxScore').textContent = (data.max_score || 0).toFixed(4);
+            
+            // 显示阈值警告
+            const thresholdWarning = document.getElementById('thresholdWarning');
+            if (data.below_threshold) {
+                thresholdWarning.style.display = 'block';
+            } else {
+                thresholdWarning.style.display = 'none';
+            }
+            
+            askResultSection.style.display = 'block';
+        }
+
+        function hideAskResult() {
+            askResultSection.style.display = 'none';
+        }
+    </script>
+</body>
+</html>

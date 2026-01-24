@@ -3,8 +3,8 @@ package flow
 import (
 	"context"
 	"go-agent/model/chat_model"
+	"go-agent/rag/rag_tools"
 	"go-agent/tool/memory"
-	"go-agent/tool/rewriter"
 
 	"go-agent/rag/rag_flow"
 
@@ -12,6 +12,12 @@ import (
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 )
+
+const RewritePrompt = `参考以下背景摘要和最近对话，将用户最后一次提问重写为一个独立的、适合向量检索的搜索语句。
+背景摘要: %s
+最近对话: %s
+用户提问: %s
+重写后的搜索语句（直接输出语句）: `
 
 type RAGChatInput struct {
 	SessionID string
@@ -34,7 +40,7 @@ func BuildRAGChatFlow(ctx context.Context, store memory.Store, taskModel model.B
 		Chat       = "chat"
 	)
 
-	qr := &rewriter.QueryRewriter{Model: taskModel}
+	cm, _ := chat_model.GetChatModel(ctx, "rewrite")
 	sm := &memory.Summarizer{Model: taskModel, MaxHistoryLen: 3}
 
 	retrieverSubGraph, err := rag_flow.BuildRetrieverGraph(ctx)
@@ -67,7 +73,7 @@ func BuildRAGChatFlow(ctx context.Context, store memory.Store, taskModel model.B
 				return nil
 			}
 
-			newQuery, err := qr.Rephrase(ctx, state.Session.Summary, state.Session.History, in.Query)
+			newQuery, err := rag_tools.Rewrite(ctx, state.Session.Summary, RewritePrompt, state.Session.History, in.Query, cm)
 			if err != nil {
 				state.Query = in.Query
 				query = in.Query

@@ -2,7 +2,7 @@ package rag_flow
 
 import (
 	"context"
-	"go-agent/rag/tools/indexer"
+	"go-agent/rag/rag_tools/indexer"
 	document2 "go-agent/tool/document"
 
 	"github.com/cloudwego/eino/components/document"

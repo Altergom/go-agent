@@ -4,7 +4,7 @@ import (
 	"context"
 	"go-agent/config"
 	"go-agent/model/embedding_model"
-	"go-agent/rag/tools/db"
+	"go-agent/rag/rag_tools/db"
 
 	"github.com/cloudwego/eino-ext/components/indexer/es8"
 	"github.com/cloudwego/eino/components/indexer"

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"go-agent/config"
 	"go-agent/model/embedding_model"
-	"go-agent/rag/tools/db"
+	"go-agent/rag/rag_tools/db"
 	"strconv"
 
 	"github.com/cloudwego/eino-ext/components/retriever/es8"

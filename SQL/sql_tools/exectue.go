@@ -1,4 +1,4 @@
-package tools
+package sql_tools
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 
 	"github.com/cloudwego/eino-ext/components/tool/mcp/officialmcp"
 	"github.com/cloudwego/eino/components/tool"
+	"github.com/cloudwego/eino/compose"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -48,6 +49,11 @@ func SQLExecute(ctx context.Context, sql string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("MCP 工具执行失败: %w", err)
 	}
+
+	_ = compose.ProcessState[*SQLState](ctx, func(ctx context.Context, state *SQLState) error {
+		state.Result = result
+		return nil
+	})
 
 	return result, nil
 }

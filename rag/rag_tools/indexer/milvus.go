@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"go-agent/config"
 	"go-agent/model/embedding_model"
-	"go-agent/rag/tools/db"
+	"go-agent/rag/rag_tools/db"
 	"log"
 	"strconv"
 	"strings"

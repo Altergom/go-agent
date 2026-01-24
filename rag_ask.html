@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RAG 召回问答</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      color: #1f2937;
+      background: radial-gradient(1200px 600px at 10% 10%, #e0e7ff 0%, rgba(224,231,255,0) 60%),
+                  radial-gradient(1200px 600px at 90% 20%, #fce7f3 0%, rgba(252,231,243,0) 55%),
+                  #f7f7fb;
+      min-height: 100vh;
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      background: rgba(255,255,255,0.7);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid #e5e7eb;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .brand {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      font-weight: 700;
+      color: #111827;
+    }
+    .brand-badge {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #667eea 0%, #8b5cf6 100%);
+      display: inline-block;
+    }
+    .nav {
+      display: flex;
+      gap: 10px;
+    }
+    .nav a {
+      text-decoration: none;
+      color: #374151;
+      padding: 8px 12px;
+      border-radius: 8px;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      transition: all 0.2s ease;
+      font-size: 13px;
+    }
+    .nav a:hover {
+      border-color: #c7d2fe;
+      color: #4338ca;
+      box-shadow: 0 4px 12px rgba(99,102,241,0.15);
+    }
+    .container {
+      max-width: 980px;
+      margin: 24px auto 40px;
+      padding: 0 20px;
+    }
+    .hero {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 20px;
+      align-items: center;
+    }
+    .hero-card {
+      background: rgba(255,255,255,0.85);
+      border: 1px solid #eef2ff;
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+    }
+    .hero h1 {
+      margin: 0 0 8px;
+      font-size: 26px;
+    }
+    .hero p {
+      margin: 0;
+      color: #6b7280;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-top: 18px;
+    }
+    .stat {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 12px;
+    }
+    .stat-title {
+      color: #6b7280;
+      font-size: 12px;
+    }
+    .stat-value {
+      font-size: 16px;
+      font-weight: 700;
+      color: #111827;
+    }
+    .panel {
+      margin-top: 20px;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 12px 30px rgba(17,24,39,0.06);
+    }
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .collection-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .collection-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+    }
+    .collection-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: #111827;
+    }
+    .collection-meta {
+      font-size: 12px;
+      color: #6b7280;
+    }
+    textarea {
+      width: 100%;
+      min-height: 140px;
+      padding: 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 10px;
+      resize: vertical;
+      font-size: 14px;
+      font-family: inherit;
+      background: #fafafa;
+    }
+    .actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-top: 12px;
+    }
+    .btn {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s ease;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #8b5cf6 100%);
+      color: #fff;
+      box-shadow: 0 6px 14px rgba(99,102,241,0.25);
+    }
+    .btn-primary:hover { transform: translateY(-1px); }
+    .btn-secondary {
+      background: #f3f4f6;
+      color: #374151;
+      border: 1px solid #e5e7eb;
+    }
+    .btn-danger {
+      background: #ef4444;
+      color: #fff;
+      box-shadow: 0 6px 14px rgba(239,68,68,0.2);
+    }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .result {
+      margin-top: 14px;
+      background: #f9fafb;
+      border: 1px dashed #e5e7eb;
+      border-radius: 12px;
+      padding: 14px;
+      min-height: 120px;
+      white-space: pre-wrap;
+      font-family: Consolas, "SFMono-Regular", monospace;
+      font-size: 12px;
+      color: #111827;
+    }
+    .hint {
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 8px;
+    }
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">
+      <span class="brand-badge"></span>
+      <span>RAG 问答控制台</span>
+    </div>
+    <div class="nav">
+      <a href="/rag_index.html">文档嵌入入口</a>
+      <a href="#milvus-collections">集合管理</a>
+      <a href="/chat_test.html">聊天测试页</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="hero">
+      <div class="hero-card">
+        <h1>知识库召回问答</h1>
+        <p>从已嵌入的文档中检索信息并生成答案（非流式输出）。</p>
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-title">模式</div>
+            <div class="stat-value">Ask</div>
+          </div>
+          <div class="stat">
+            <div class="stat-title">接口</div>
+            <div class="stat-value">/api/rag/ask</div>
+          </div>
+        </div>
+      </div>
+      <div class="hero-card">
+        <h1>快速开始</h1>
+        <p>先前往“文档嵌入入口”上传文件，然后回到此页进行检索问答。</p>
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-title">上传</div>
+            <div class="stat-value">rag_index.html</div>
+          </div>
+          <div class="stat">
+            <div class="stat-title">问答</div>
+            <div class="stat-value">rag_ask.html</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="milvus-collections">
+      <div class="panel-header">
+        <div>
+          <h2>🧩 Milvus 集合管理</h2>
+          <div class="hint" id="collectionHint">正在加载集合列表...</div>
+        </div>
+        <button class="btn btn-secondary" id="collectionRefreshBtn">刷新</button>
+      </div>
+      <div class="collection-list" id="collectionList"></div>
+    </div>
+
+    <div class="panel">
+      <textarea id="question" placeholder="请输入问题，例如：文档中提到的主要结论是什么？"></textarea>
+      <div class="actions">
+        <button id="askBtn" class="btn btn-primary" onclick="ask()">提交问题 (普通)</button>
+        <button id="streamBtn" class="btn btn-primary" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);" onclick="askStream()">流式问答 (快)</button>
+        <button class="btn btn-secondary" onclick="clearResult()">清空结果</button>
+      </div>
+      <div class="hint">提示：流式问答可以显著降低首屏等待时间。</div>
+      <div class="result" id="result">等待提问...</div>
+    </div>
+  </div>
+
+  <script>
+    const resultEl = document.getElementById("result");
+    const askBtn = document.getElementById("askBtn");
+    const collectionListEl = document.getElementById("collectionList");
+    const collectionHintEl = document.getElementById("collectionHint");
+    const collectionRefreshBtn = document.getElementById("collectionRefreshBtn");
+
+    async function ask() {
+      const query = document.getElementById("question").value.trim();
+      if (!query) {
+        resultEl.textContent = "请输入问题。";
+        return;
+      }
+
+      askBtn.disabled = true;
+      resultEl.textContent = "查询中...";
+
+      try {
+        const res = await fetch("/api/rag/ask", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query })
+        });
+        const data = await res.json();
+        resultEl.textContent = JSON.stringify(data, null, 2);
+      } catch (e) {
+        resultEl.textContent = "查询失败，请稍后重试。";
+      } finally {
+        askBtn.disabled = false;
+      }
+    }
+
+    async function askStream() {
+      const query = document.getElementById("question").value.trim();
+      if (!query) {
+        resultEl.textContent = "请输入问题。";
+        return;
+      }
+
+      const streamBtn = document.getElementById("streamBtn");
+      streamBtn.disabled = true;
+      resultEl.textContent = "";
+
+      try {
+        const response = await fetch("/api/rag/chat/stream", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query })
+        });
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value);
+          const lines = chunk.split("\n");
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              try {
+                const data = JSON.parse(line.substring(6));
+                resultEl.textContent += data.content;
+              } catch (e) {}
+            }
+          }
+        }
+      } catch (e) {
+        resultEl.textContent = "流式连接失败，请稍后重试。";
+      } finally {
+        streamBtn.disabled = false;
+      }
+    }
+
+    function clearResult() {
+      resultEl.textContent = "等待提问...";
+    }
+
+    async function loadCollections() {
+      collectionHintEl.textContent = "加载中...";
+      collectionListEl.innerHTML = "";
+      collectionRefreshBtn.disabled = true;
+
+      try {
+        const res = await fetch("/api/milvus/collections");
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.message || "获取集合列表失败");
+        }
+
+        const names = Array.isArray(data.collections) ? data.collections : [];
+        if (names.length === 0) {
+          collectionHintEl.textContent = "暂无集合";
+          return;
+        }
+
+        collectionHintEl.textContent = `共 ${names.length} 个集合`;
+        names.forEach((name) => {
+          const item = document.createElement("div");
+          item.className = "collection-item";
+
+          const info = document.createElement("div");
+          const title = document.createElement("div");
+          title.className = "collection-name";
+          title.textContent = name;
+          const meta = document.createElement("div");
+          meta.className = "collection-meta";
+          meta.textContent = "可用于向量检索";
+          info.appendChild(title);
+          info.appendChild(meta);
+
+          const action = document.createElement("div");
+          const delBtn = document.createElement("button");
+          delBtn.className = "btn btn-danger";
+          delBtn.textContent = "删除";
+          delBtn.onclick = () => deleteCollection(name, delBtn);
+          action.appendChild(delBtn);
+
+          item.appendChild(info);
+          item.appendChild(action);
+          collectionListEl.appendChild(item);
+        });
+      } catch (e) {
+        collectionHintEl.textContent = "加载失败：" + e.message;
+      } finally {
+        collectionRefreshBtn.disabled = false;
+      }
+    }
+
+    async function deleteCollection(name, buttonEl) {
+      if (!window.confirm(`确定要删除集合 ${name} 吗？该操作不可恢复。`)) {
+        return;
+      }
+
+      buttonEl.disabled = true;
+      try {
+        const res = await fetch(`/api/milvus/collections/${encodeURIComponent(name)}`, {
+          method: "DELETE"
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.message || "删除失败");
+        }
+        await loadCollections();
+      } catch (e) {
+        collectionHintEl.textContent = "删除失败：" + e.message;
+      } finally {
+        buttonEl.disabled = false;
+      }
+    }
+
+    collectionRefreshBtn.addEventListener("click", loadCollections);
+    loadCollections();
+  </script>
+</body>
+</html>
