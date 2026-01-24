@@ -1,4 +1,4 @@
-package compose
+package rag_flow
 
 import (
 	"context"
@@ -11,14 +11,14 @@ import (
 	"github.com/cloudwego/eino/schema"
 )
 
+const (
+	MilvusRetriever = "MilvusRetriever"
+	ESRetriever     = "ESRetriever"
+	Reranker        = "Reranker"
+)
+
 // BuildRetrieverGraph 仅负责检索，输入 query，输出文档列表
 func BuildRetrieverGraph(ctx context.Context) (compose.Runnable[string, []*schema.Document], error) {
-	const (
-		MilvusRetriever = "MilvusRetriever"
-		ESRetriever     = "ESRetriever"
-		Reranker        = "Reranker"
-	)
-
 	g := compose.NewGraph[string, []*schema.Document]()
 
 	// 构建召回节点

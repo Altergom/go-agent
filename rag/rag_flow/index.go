@@ -1,4 +1,4 @@
-package compose
+package rag_flow
 
 import (
 	"context"
@@ -10,16 +10,16 @@ import (
 	"github.com/cloudwego/eino/compose"
 )
 
+const (
+	Milvus   = "Milvus"
+	ES       = "ES"
+	Splitter = "Splitter"
+	Parser   = "Parser"
+	Loader   = "Loader"
+)
+
 // BuildIndexingGraph 创建检索图
 func BuildIndexingGraph(ctx context.Context) (compose.Runnable[document.Source, []string], error) {
-	const (
-		Milvus   = "Milvus"
-		ES       = "ES"
-		Splitter = "Splitter"
-		Parser   = "Parser"
-		Loader   = "Loader"
-	)
-
 	// 创建图
 	g := compose.NewGraph[document.Source, []string]()
 

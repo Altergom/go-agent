@@ -6,7 +6,7 @@ import (
 	"go-agent/tool/memory"
 	"go-agent/tool/rewriter"
 
-	compose2 "go-agent/rag/compose"
+	"go-agent/rag/rag_flow"
 
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/compose"
@@ -37,7 +37,7 @@ func BuildRAGChatFlow(ctx context.Context, store memory.Store, taskModel model.B
 	qr := &rewriter.QueryRewriter{Model: taskModel}
 	sm := &memory.Summarizer{Model: taskModel, MaxHistoryLen: 3}
 
-	retrieverSubGraph, err := compose2.BuildRetrieverGraph(ctx)
+	retrieverSubGraph, err := rag_flow.BuildRetrieverGraph(ctx)
 	if err != nil {
 		return nil, err
 	}
