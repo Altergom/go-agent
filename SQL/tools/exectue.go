@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"go-agent/config"
 	"os"
@@ -19,10 +20,12 @@ func SQLExecute(ctx context.Context, sql string) (string, error) {
 	}
 
 	var targetTool tool.InvokableTool
+	var toolNames []string
 	for _, t := range mcpTool {
 		if invokable, ok := t.(tool.InvokableTool); ok {
 			info, _ := invokable.Info(ctx)
-			if info.Name == "MySQL" {
+			toolNames = append(toolNames, info.Name)
+			if info.Name == "mysql_query" {
 				targetTool = invokable
 				break
 			}
@@ -30,13 +33,18 @@ func SQLExecute(ctx context.Context, sql string) (string, error) {
 	}
 
 	if targetTool == nil {
-		return "", fmt.Errorf("未找到指定的数据库执行工具")
+		return "", fmt.Errorf("未找到指定的数据库执行工具, 当前可用工具: %v", toolNames)
 	}
 
-	args := fmt.Sprintf(`{"sql": "%s"}`, sql)
+	// 使用 json.Marshal 自动处理 SQL 中的换行符和特殊字符转义
+	params := map[string]string{"sql": sql}
+	paramsJSON, err := json.Marshal(params)
+	if err != nil {
+		return "", fmt.Errorf("序列化 MCP 参数失败: %w", err)
+	}
 
 	// 使用InvokableRun通过MCP协议发送请求到Server
-	result, err := targetTool.InvokableRun(ctx, args)
+	result, err := targetTool.InvokableRun(ctx, string(paramsJSON))
 	if err != nil {
 		return "", fmt.Errorf("MCP 工具执行失败: %w", err)
 	}
@@ -71,6 +79,6 @@ func GetMCPTool(ctx context.Context) ([]tool.BaseTool, error) {
 
 	return officialmcp.GetTools(ctx, &officialmcp.Config{
 		Cli:          session,
-		ToolNameList: []string{},
+		ToolNameList: []string{"mysql_query", "list_tables", "describe_table"},
 	})
 }
