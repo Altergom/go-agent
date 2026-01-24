@@ -26,7 +26,7 @@ func RAGChatStream(c *gin.Context) {
 	}
 
 	ctx := langsmith.SetTrace(c.Request.Context(),
-		langsmith.WithSessionName("GoAgent-RAG-Stream"),
+		langsmith.WithSessionName("GoAgent"),
 		langsmith.AddTag("session:"+req.SessionID),
 	)
 

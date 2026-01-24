@@ -22,7 +22,7 @@ func RAGAsk(c *gin.Context) {
 	}
 
 	ctx := langsmith.SetTrace(c.Request.Context(),
-		langsmith.WithSessionName("GoAgent-RAG"),
+		langsmith.WithSessionName("GoAgen"),
 		langsmith.AddTag("session:"+req.SessionID),
 	)
 
