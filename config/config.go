@@ -22,6 +22,8 @@ type Config struct {
 	ESConf     ESConfig
 
 	LangSmithConf LangSmithConfig
+
+	MySQLConf MySQLConfig
 }
 
 type ArkConfig struct {
@@ -72,6 +74,14 @@ type ESConfig struct {
 type LangSmithConfig struct {
 	APIKey string
 	APIUrl string
+}
+
+type MySQLConfig struct {
+	Host     string
+	Port     string
+	Username string
+	Password string
+	Database string
 }
 
 var Cfg *Config
@@ -132,6 +142,13 @@ func LoadConfig() (*Config, error) {
 		LangSmithConf: LangSmithConfig{
 			APIKey: getEnv("LANG_SMITH_KEY", ""),
 			APIUrl: getEnv("LANG_SMITH_URL", ""),
+		},
+		MySQLConf: MySQLConfig{
+			Host:     getEnv("MYSQL_HOST", "localhost"),
+			Port:     getEnv("MYSQL_PORT", "3306"),
+			Username: getEnv("MYSQL_USERNAME", ""),
+			Password: getEnv("MYSQL_PASSWORD", ""),
+			Database: getEnv("MYSQL_DATABASE", ""),
 		},
 	}
 
