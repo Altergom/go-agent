@@ -98,7 +98,7 @@ func BuildRetrieverGraph(ctx context.Context) (compose.Runnable[string, []*schem
 	r, err := g.Compile(
 		ctx,
 		compose.WithGraphName("RAGRetriever"),
-		compose.WithNodeTriggerMode(compose.AnyPredecessor),
+		compose.WithNodeTriggerMode(compose.AllPredecessor),
 	)
 	if err != nil {
 		return nil, err

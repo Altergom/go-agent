@@ -61,7 +61,7 @@ func BuildIndexingGraph(ctx context.Context) (compose.Runnable[document.Source, 
 	r, err := g.Compile(
 		ctx,
 		compose.WithGraphName("RAGIndexing"),
-		compose.WithNodeTriggerMode(compose.AnyPredecessor),
+		compose.WithNodeTriggerMode(compose.AllPredecessor),
 	)
 	if err != nil {
 		return nil, err
