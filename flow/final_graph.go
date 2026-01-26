@@ -14,7 +14,7 @@ const (
 	SQL                   = "SQL"
 )
 
-func BuildFinalGraph() {
+func BuildFinalGraph() (compose.Runnable[string, string], error) {
 	ctx := context.Background()
 
 	sql, _ := sql_flow.BuildSQLGraph(ctx)
@@ -35,4 +35,12 @@ func BuildFinalGraph() {
 	_ = g.AddEdge(compose.START, Intention_Recognition)
 	_ = g.AddEdge(Intention_Recognition, Chat)
 	_ = g.AddEdge(Intention_Recognition, SQL)
+	_ = g.AddEdge(SQL, compose.END)
+
+	r, err := g.Compile(ctx, compose.WithGraphName("final_graph"))
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
 }
