@@ -12,7 +12,6 @@ import (
 
 const (
 	SQL_Generator = "SQL_Generator"
-	SQL_Executor  = "SQL_Executor"
 	Retriever     = "Retriever"
 	Rewriter      = "Rewriter"
 )
@@ -22,10 +21,6 @@ const RewritePrompt = `参考以下背景摘要和最近对话，把用户提问
 用户提问: %s
 召回结果: %s
 重写后的生成语句（直接输出语句）: `
-
-func init() {
-	schema.RegisterName[*sql_tools.SQLState]("SQLState")
-}
 
 func BuildSQLGraph(ctx context.Context) (compose.Runnable[string, string], error) {
 	g := compose.NewGraph[string, string](
@@ -39,41 +34,21 @@ func BuildSQLGraph(ctx context.Context) (compose.Runnable[string, string], error
 		return nil, err
 	}
 	_ = g.AddLambdaNode(SQL_Generator, compose.InvokableLambda(sql_tools.SQLGenerate))
-	_ = g.AddLambdaNode(SQL_Executor, compose.InvokableLambda(sql_tools.SQLExecute))
 	_ = g.AddLambdaNode(Retriever, compose.InvokableLambda(func(ctx context.Context, input string) (output []*schema.Document, err error) {
-		output, err = retriever.Invoke(ctx, input)
-		if err != nil {
-			return nil, err
-		}
-
-		return output, nil
+		return retriever.Invoke(ctx, input)
 	}))
 	// 再加一个重写节点，根据召回的规则重写传来的意图
-	_ = g.AddLambdaNode(Retriever, compose.InvokableLambda(func(ctx context.Context, input []*schema.Document) (output string, err error) {
+	_ = g.AddLambdaNode(Rewriter, compose.InvokableLambda(func(ctx context.Context, input []*schema.Document) (output string, err error) {
 		cm, _ := chat_model.GetChatModel(ctx, "rewriter")
-		newPrompt, err := sql_tools.Rewrite(ctx, RewritePrompt, input, "", cm)
-		if err != nil {
-			return "", err
-		}
-
-		return newPrompt, nil
+		return sql_tools.Rewrite(ctx, RewritePrompt, input, "", cm)
 	}))
 
 	_ = g.AddEdge(compose.START, Retriever)
 	_ = g.AddEdge(Retriever, Rewriter)
 	_ = g.AddEdge(Rewriter, SQL_Generator)
-	_ = g.AddEdge(SQL_Generator, SQL_Executor)
-	_ = g.AddEdge(SQL_Executor, compose.END)
+	_ = g.AddEdge(SQL_Generator, compose.END)
 
-	r, err := g.Compile(ctx,
-		compose.WithInterruptBeforeNodes([]string{SQL_Executor}),
-		compose.WithCheckPointStore(NewInMemoryStore()),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return r, nil
+	return g.Compile(ctx, compose.WithCheckPointStore(NewInMemoryStore()))
 }
 
 // TODO 这里可以换成redis
