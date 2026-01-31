@@ -63,3 +63,11 @@ func MsgToSQLToolCall(ctx context.Context, input *schema.Message) (*schema.Messa
 func StringToMsg(ctx context.Context, input string) (*schema.Message, error) {
 	return schema.UserMessage(input), nil
 }
+
+// MsgsToQuery 从消息列表中提取最后一条消息的内容作为查询字符串
+func MsgsToQuery(ctx context.Context, input []*schema.Message) (string, error) {
+	if len(input) == 0 {
+		return "", nil
+	}
+	return input[len(input)-1].Content, nil
+}
