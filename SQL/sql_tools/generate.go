@@ -26,7 +26,7 @@ func SQLGenerate(ctx context.Context, prompt string) (string, error) {
 你的任务是根据用户提供的【数据处理需求描述】生成一条准确的 SQL 语句。
 要求：
 1. 必须使用标准 MySQL 语法。
-2. 仅输出 SQL 语句，严禁包含任何 Markdown 格式（如 ` + "" + `）、解释说明或多余字符。
+2. 仅输出 SQL 语句，严禁包含任何 Markdown 格式（如 ` + "```" + `）、解释说明或多余字符。
 3. 确保 SQL 逻辑严密，处理好时间范围和数值单位。
 4. 如果输入的需求描述中包含表名或字段名的显式指定，请严格遵守。`,
 	}
