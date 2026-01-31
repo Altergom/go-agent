@@ -3,105 +3,76 @@ package flow
 import (
 	"context"
 
-	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 )
 
 type SQLFlowState struct {
-	Query       string
-	History     []*schema.Message
-	CurrentSQL  string
-	IsValid     bool
-	Step        string
-	LastMessage *schema.Message
+	History []*schema.Message `json:"history"`
 }
 
 const (
-	Intent       = "Intent"
-	ReAct        = "ReAct"
-	MCPExecute   = "MCPExecute"
-	Trans        = "Trans"
-	PreExecution = "PreExecution"
+	ToSQLVar     = "ToSQLVar"
+	SQL_Retrieve = "SQL_Retrieve"
+	ToTplVar     = "ToTplVar"
+	SQL_Tpl      = "SQL_Tpl"
+	SQL_Model    = "SQL_Model"
+	Approve      = "Approve"
+	ToRefineVar  = "ToRefineVar"
 )
 
-func BuildSQLReact(ctx context.Context, cm model.BaseChatModel, mcpToolsNode *compose.ToolsNode, store compose.CheckPointStore) (compose.Runnable[string, string], error) {
-	g := compose.NewGraph[string, string](
-		compose.WithGenLocalState(func(ctx context.Context) *SQLFlowState {
-			return &SQLFlowState{Step: "START"}
-		}),
-	)
+func init() {
+	schema.Register[*SQLFlowState]()
+}
 
-	_ = g.AddLambdaNode(Intent, compose.InvokableLambda(func(ctx context.Context, input string) (output []*schema.Message, err error) {
-		_ = compose.ProcessState[*SQLFlowState](ctx, func(ctx context.Context, state *SQLFlowState) error {
-			state.Query = input
-			return nil
-		})
-		return []*schema.Message{schema.UserMessage(input)}, nil
-	}))
+func BuildReactGraph(ctx context.Context) (*compose.Graph[[]*schema.Message, []*schema.Message], error) {
+	g := compose.NewGraph[[]*schema.Message, []*schema.Message]()
 
-	_ = g.AddLambdaNode(Trans, compose.InvokableLambda(func(ctx context.Context, input any) (string, error) {
-		switch v := input.(type) {
-		case *schema.Message:
-			return v.Content, nil
-		case []*schema.Message:
-			if len(v) > 0 {
-				return v[len(v)-1].Content, nil
-			}
-		case string:
-			return v, nil
-		}
+	// 转换：[]*Message -> string (提取 query 用于检索)
+	_ = g.AddLambdaNode(ToSQLVar, compose.InvokableLambda(func(ctx context.Context, input []*schema.Message) (string, error) {
 		return "", nil
 	}))
 
-	_ = g.AddChatModelNode(ReAct, cm,
-		compose.WithStatePreHandler(func(ctx context.Context, in []*schema.Message, state *SQLFlowState) ([]*schema.Message, error) {
-			state.Step = ReAct
-			if len(state.History) == 0 {
-				state.History = append(state.History, schema.UserMessage(state.Query))
-			}
-			return state.History, nil
-		}),
-		compose.WithStatePostHandler(func(ctx context.Context, out *schema.Message, state *SQLFlowState) (*schema.Message, error) {
-			state.History = append(state.History, out)
-			if len(out.ToolCalls) > 0 {
-				state.CurrentSQL = out.ToolCalls[0].Function.Arguments
-				state.LastMessage = out
-			}
-			return out, nil
-		}),
-	)
+	// RAG 检索：召回行业黑话、表结构信息等
+	// _ = g.AddGraphNode(SQL_Retrieve, retrieverSubGraph)
 
-	_ = g.AddLambdaNode(PreExecution, compose.InvokableLambda(func(ctx context.Context, _ any) (*schema.Message, error) {
-		var lastMsg *schema.Message
-		_ = compose.ProcessState[*SQLFlowState](ctx, func(ctx context.Context, state *SQLFlowState) error {
-			lastMsg = state.LastMessage
-			return nil
-		})
-		return lastMsg, nil
+	// 转换：[]*Document -> map[string]any (将检索结果包装为模板变量)
+	_ = g.AddLambdaNode(ToTplVar, compose.InvokableLambda(func(ctx context.Context, input []*schema.Document) (map[string]any, error) {
+		return nil, nil
 	}))
 
-	_ = g.AddToolsNode(MCPExecute, mcpToolsNode, compose.WithStatePostHandler(func(ctx context.Context, out []*schema.Message, state *SQLFlowState) ([]*schema.Message, error) {
-		state.History = append(state.History, out...)
-		return out, nil
+	// SQL 模板节点 (ChatTemplate)
+	// _ = g.AddChatTemplateNode(SQL_Tpl, sql_tpl_node)
+
+	// SQL 生成模型 (ChatModel)
+	// _ = g.AddChatModelNode(SQL_Model, chat_model.CM)
+
+	// 用户审批节点 (Lambda + Interrupt)
+	_ = g.AddLambdaNode(Approve, compose.InvokableLambda(func(ctx context.Context, input *schema.Message) (output *schema.Message, err error) {
+		return input, nil
 	}))
 
-	_ = g.AddEdge(compose.START, Intent)
-	_ = g.AddEdge(Intent, ReAct)
-	_ = g.AddEdge(MCPExecute, ReAct)
+	// 审批分支 (Branch)
+	_ = g.AddBranch(Approve, compose.NewGraphBranch(func(ctx context.Context, input *schema.Message) (endNode string, err error) {
+		return "", nil
+	}, map[string]bool{
+		ToRefineVar: true,
+		compose.END: true,
+	}))
 
-	_ = g.AddBranch(ReAct, compose.NewGraphBranch(func(ctx context.Context, out *schema.Message) (string, error) {
-		if len(out.ToolCalls) > 0 {
-			return PreExecution, nil
-		}
-		return Trans, nil
-	}, map[string]bool{PreExecution: true, Trans: true}))
+	// 拒绝回流转换：*Message -> map[string]any (适配 SQL_Tpl)
+	_ = g.AddLambdaNode(ToRefineVar, compose.InvokableLambda(func(ctx context.Context, input *schema.Message) (output map[string]any, err error) {
+		return map[string]any{"query": input.Content}, nil
+	}))
 
-	_ = g.AddEdge(PreExecution, MCPExecute)
-	_ = g.AddEdge(Trans, compose.END)
+	// 连线
+	_ = g.AddEdge(compose.START, ToSQLVar)
+	_ = g.AddEdge(ToSQLVar, SQL_Retrieve)
+	_ = g.AddEdge(SQL_Retrieve, ToTplVar)
+	_ = g.AddEdge(ToTplVar, SQL_Tpl)
+	_ = g.AddEdge(SQL_Tpl, SQL_Model)
+	_ = g.AddEdge(SQL_Model, Approve)
+	_ = g.AddEdge(ToRefineVar, SQL_Tpl)
 
-	return g.Compile(ctx,
-		compose.WithCheckPointStore(store),
-		compose.WithInterruptBeforeNodes([]string{MCPExecute}),
-	)
+	return g, nil
 }

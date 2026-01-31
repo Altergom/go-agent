@@ -5,128 +5,99 @@ import (
 	"fmt"
 	"go-agent/SQL/sql_tools"
 	"go-agent/model/chat_model"
-	"strings"
+	"go-agent/tool"
 
+	"github.com/cloudwego/eino/components/prompt"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 )
 
 const (
-	Intention_Recognition = "Intention_Recognition"
-	Chat                  = "Chat"
-	SQL                   = "SQL"
+	ToVar        = "ToVar"
+	Intent_Tpl   = "Intent_Tpl"
+	Intent_Model = "Intent_Model"
+	IntentBranch = "IntentBranch"
+	React        = "React"
+	Chat         = "Chat"
+	ToToolCall   = "ToToolCall"
+	MCP          = "MCP"
+	ResultClean  = "ResultClean"
 )
 
-func BuildFinalGraph(store compose.CheckPointStore) (compose.Runnable[string, string], error) {
-	ctx := context.Background()
+func BuildFinalGraph(ctx context.Context, store compose.CheckPointStore) (compose.Runnable[[]*schema.Message, []*schema.Message], error) {
+	g := compose.NewGraph[[]*schema.Message, []*schema.Message]()
 
-	// 获取 MCP 工具并初始化 ToolsNode
-	mcpTools, err := sql_tools.GetMCPTool(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("get mcp tools fail: %w", err)
-	}
+	// 类型转换：[]*Message -> map[string]any
+	_ = g.AddLambdaNode(ToVar, compose.InvokableLambda(tool.MsgToMap))
 
-	// 构造 ToolsNode
-	mcpToolsNode, err := compose.NewToolNode(ctx, &compose.ToolsNodeConfig{
-		Tools: mcpTools,
+	intentTemp := prompt.FromMessages(schema.FString,
+		schema.SystemMessage("你是一个意图识别专家。请分析用户输入，如果是关于数据库查询、数据统计、报表需求，回答 'SQL'；否则回答 'Chat'。"),
+		schema.UserMessage("{query}"),
+	)
+	// 意图识别模板
+	_ = g.AddChatTemplateNode(Intent_Tpl, intentTemp)
+
+	// 意图识别模型
+	_ = g.AddChatModelNode(Intent_Model, chat_model.CM)
+
+	//  React 子图
+	react, _ := BuildReactGraph(ctx)
+	_ = g.AddGraphNode(React, react)
+
+	// 聊天路径
+	_ = g.AddChatModelNode(Chat, chat_model.CM)
+
+	// 意图分支
+	_ = g.AddBranch(Intent_Model, compose.NewGraphBranch(func(ctx context.Context, input *schema.Message) (endNode string, err error) {
+		return "", nil
+	}, map[string]bool{
+		React: true,
+		Chat:  true,
+	}))
+
+	// 类型转换：[]*Message -> *Message
+	_ = g.AddLambdaNode(ToToolCall, compose.InvokableLambda(func(ctx context.Context, input []*schema.Message) (*schema.Message, error) {
+		msg, err := tool.MsgsToMsg(ctx, input)
+		if err != nil {
+			return nil, err
+		}
+		return tool.MsgToSQLToolCall(ctx, msg)
+	}))
+
+	// MCP 执行节点
+	tools, _ := sql_tools.GetMCPTool(ctx)
+	mcpTool, err := compose.NewToolNode(ctx, &compose.ToolsNodeConfig{
+		Tools: tools,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("new tools node fail: %w", err)
+		return nil, err
 	}
+	_ = g.AddToolsNode(MCP, mcpTool)
 
-	// 将工具绑定到聊天模型
-	if binder, ok := chat_model.CM.(interface {
-		BindTools([]*schema.ToolInfo) error
-	}); ok {
-		toolInfos := make([]*schema.ToolInfo, 0, len(mcpTools))
-		for _, t := range mcpTools {
-			info, err := t.Info(ctx)
-			if err != nil {
-				return nil, fmt.Errorf("get tool info fail: %w", err)
-			}
-			toolInfos = append(toolInfos, info)
-		}
-		_ = binder.BindTools(toolInfos)
-	}
-
-	sqlAgent, err := BuildSQLReact(ctx, chat_model.CM, mcpToolsNode, store)
-	if err != nil {
-		return nil, fmt.Errorf("build sql agent fail: %w", err)
-	}
-
-	g := compose.NewGraph[string, string](
-		compose.WithGenLocalState(func(ctx context.Context) *string {
-			return new(string)
-		}),
-	)
-
-	_ = g.AddLambdaNode(Intention_Recognition, compose.InvokableLambda(func(ctx context.Context, input string) (string, error) {
-		// 优先检查是否是恢复流程 (无论是自身中断还是子节点中断)
-		if isResume, _, _ := compose.GetResumeContext[any](ctx); isResume {
-			fmt.Println(">>> Intention_Recognition: Resume flow detected, routing to SQL")
-			return SQL, nil
-		}
-
-		// 如果是确认指令，直接跳转到 SQL 节点，且不覆盖之前的 Query 状态
-		if input == "YES" || input == "执行" || input == "批准执行" {
-			fmt.Printf(">>> Intention_Recognition: Confirmation '%s' detected, routing to SQL\n", input)
-			return SQL, nil
-		}
-
-		// 只有新请求才更新状态
-		_ = compose.ProcessState[*string](ctx, func(ctx context.Context, state *string) error {
-			*state = input
-			return nil
-		})
-
-		prompt := fmt.Sprintf("请分析用户输入的意图。如果是关于数据库查询、数据统计、报表需求，回答 'SQL'；否则回答 'Chat'。\n用户输入: %s\n意图:", input)
-		res, err := chat_model.CM.Generate(ctx, []*schema.Message{schema.UserMessage(prompt)})
-		if err != nil {
-			return Chat, nil
-		}
-
-		if strings.Contains(strings.ToUpper(res.Content), "SQL") {
-			return SQL, nil
-		}
-		return Chat, nil
+	// 结果清理与格式化
+	_ = g.AddLambdaNode(ResultClean, compose.InvokableLambda(func(ctx context.Context, input []*schema.Message) (output []*schema.Message, err error) {
+		return input, nil
 	}))
 
-	_ = g.AddLambdaNode(Chat, compose.InvokableLambda(func(ctx context.Context, _ string) (string, error) {
-		var query string
-		_ = compose.ProcessState[*string](ctx, func(ctx context.Context, state *string) error {
-			query = *state
-			return nil
-		})
-		res, err := chat_model.CM.Generate(ctx, []*schema.Message{schema.UserMessage(query)})
-		if err != nil {
-			return "", err
-		}
-		return res.Content, nil
-	}))
+	// 连线
+	_ = g.AddEdge(compose.START, ToVar)
+	_ = g.AddEdge(ToVar, Intent_Tpl)
+	_ = g.AddEdge(Intent_Tpl, Intent_Model)
+	_ = g.AddEdge(Intent_Model, IntentBranch)
 
-	_ = g.AddLambdaNode(SQL, compose.InvokableLambda(func(ctx context.Context, _ string) (string, error) {
-		sessionID, _ := ctx.Value("session_id").(string)
-		var query string
-		_ = compose.ProcessState[*string](ctx, func(ctx context.Context, state *string) error {
-			query = *state
-			return nil
-		})
+	_ = g.AddEdge(IntentBranch, React)
+	_ = g.AddEdge(IntentBranch, Chat)
 
-		// 显式传递 CheckPointID 给子图，并增加后缀以防与主图冲突
-		// 同时透传 context (包含 Resume 信号)
-		return sqlAgent.Invoke(ctx, query, compose.WithCheckPointID(sessionID+"_sql"))
-	}))
+	_ = g.AddEdge(React, ToToolCall)
+	_ = g.AddEdge(ToToolCall, MCP)
+	_ = g.AddEdge(MCP, ResultClean)
+	_ = g.AddEdge(ResultClean, compose.END)
 
-	_ = g.AddBranch(Intention_Recognition, compose.NewGraphBranch(func(ctx context.Context, intent string) (string, error) {
-		return intent, nil
-	}, map[string]bool{Chat: true, SQL: true}))
-
-	_ = g.AddEdge(compose.START, Intention_Recognition)
 	_ = g.AddEdge(Chat, compose.END)
-	_ = g.AddEdge(SQL, compose.END)
 
 	return g.Compile(ctx,
-		compose.WithGraphName("final_graph"),
 		compose.WithCheckPointStore(store),
-	)
+		compose.WithInterruptBeforeNodes([]string{
+			fmt.Sprintf("%s/%s", React, Approve),
+		}))
 }

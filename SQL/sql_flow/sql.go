@@ -34,9 +34,7 @@ func BuildSQLGraph(ctx context.Context) (compose.Runnable[string, string], error
 		return nil, err
 	}
 	_ = g.AddLambdaNode(SQL_Generator, compose.InvokableLambda(sql_tools.SQLGenerate))
-	_ = g.AddLambdaNode(Retriever, compose.InvokableLambda(func(ctx context.Context, input string) (output []*schema.Document, err error) {
-		return retriever.Invoke(ctx, input)
-	}))
+	_ = g.AddGraphNode(Retriever, retriever)
 	// 再加一个重写节点，根据召回的规则重写传来的意图
 	_ = g.AddLambdaNode(Rewriter, compose.InvokableLambda(func(ctx context.Context, input []*schema.Document) (output string, err error) {
 		cm, _ := chat_model.GetChatModel(ctx, "rewriter")

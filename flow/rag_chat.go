@@ -86,17 +86,7 @@ func BuildRAGChatFlow(ctx context.Context, store memory.Store, taskModel model.B
 		return query, nil
 	}))
 
-	_ = g.AddLambdaNode(Retrieve, compose.InvokableLambda(func(ctx context.Context, query string) ([]*schema.Document, error) {
-		docs, err := retrieverSubGraph.Invoke(ctx, query)
-		if err != nil {
-			return nil, err
-		}
-		_ = compose.ProcessState[*GraphState](ctx, func(ctx context.Context, state *GraphState) error {
-			state.Docs = docs
-			return nil
-		})
-		return docs, nil
-	}))
+	_ = g.AddGraphNode(Retrieve, retrieverSubGraph)
 
 	// []*schema.Document转为[]*schema.Message
 	_ = g.AddLambdaNode("ConstructMessages", compose.InvokableLambda(func(ctx context.Context, docs []*schema.Document) ([]*schema.Message, error) {
