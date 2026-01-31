@@ -6,36 +6,28 @@ import (
 	"go-agent/SQL/sql_tools"
 	"go-agent/model/chat_model"
 	"go-agent/tool"
+	"strings"
 
-	"github.com/cloudwego/eino/components/prompt"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 )
 
 const (
-	ToVar        = "ToVar"
-	Intent_Tpl   = "Intent_Tpl"
+	Trans_List   = "Trans_List"
 	Intent_Model = "Intent_Model"
-	IntentBranch = "IntentBranch"
 	React        = "React"
 	Chat         = "Chat"
 	ToToolCall   = "ToToolCall"
 	MCP          = "MCP"
-	ResultClean  = "ResultClean"
 )
 
 func BuildFinalGraph(ctx context.Context, store compose.CheckPointStore) (compose.Runnable[[]*schema.Message, []*schema.Message], error) {
 	g := compose.NewGraph[[]*schema.Message, []*schema.Message]()
 
-	// 类型转换：[]*Message -> map[string]any
-	_ = g.AddLambdaNode(ToVar, compose.InvokableLambda(tool.MsgToMap))
-
-	intentTemp := prompt.FromMessages(schema.FString,
-		schema.SystemMessage("你是一个意图识别专家。请分析用户输入，如果是关于数据库查询、数据统计、报表需求，回答 'SQL'；否则回答 'Chat'。"),
-		schema.UserMessage("{query}"),
-	)
-	// 意图识别模板
-	_ = g.AddChatTemplateNode(Intent_Tpl, intentTemp)
+	//intentTemp := prompt.FromMessages(schema.FString,
+	//	schema.SystemMessage("你是一个意图识别专家。请分析用户输入，如果是关于数据库查询、数据统计、报表需求，回答 'SQL'；否则回答 'Chat'。"),
+	//	schema.UserMessage("{query}"),
+	//)
 
 	// 意图识别模型
 	_ = g.AddChatModelNode(Intent_Model, chat_model.CM)
@@ -47,9 +39,16 @@ func BuildFinalGraph(ctx context.Context, store compose.CheckPointStore) (compos
 	// 聊天路径
 	_ = g.AddChatModelNode(Chat, chat_model.CM)
 
+	// 转换节点
+	_ = g.AddLambdaNode(Trans_List, compose.InvokableLambda(tool.MsgToMsgs))
+
 	// 意图分支
-	_ = g.AddBranch(Intent_Model, compose.NewGraphBranch(func(ctx context.Context, input *schema.Message) (endNode string, err error) {
-		return "", nil
+	_ = g.AddBranch(Trans_List, compose.NewGraphBranch(func(ctx context.Context, input []*schema.Message) (endNode string, err error) {
+		content := strings.ToUpper(input[len(input)-1].Content)
+		if strings.Contains(content, "SQL") {
+			return React, nil
+		}
+		return Chat, nil
 	}, map[string]bool{
 		React: true,
 		Chat:  true,
@@ -74,26 +73,15 @@ func BuildFinalGraph(ctx context.Context, store compose.CheckPointStore) (compos
 	}
 	_ = g.AddToolsNode(MCP, mcpTool)
 
-	// 结果清理与格式化
-	_ = g.AddLambdaNode(ResultClean, compose.InvokableLambda(func(ctx context.Context, input []*schema.Message) (output []*schema.Message, err error) {
-		return input, nil
-	}))
-
 	// 连线
-	_ = g.AddEdge(compose.START, ToVar)
-	_ = g.AddEdge(ToVar, Intent_Tpl)
-	_ = g.AddEdge(Intent_Tpl, Intent_Model)
-	_ = g.AddEdge(Intent_Model, IntentBranch)
-
-	_ = g.AddEdge(IntentBranch, React)
-	_ = g.AddEdge(IntentBranch, Chat)
+	_ = g.AddEdge(compose.START, Intent_Model)
+	_ = g.AddEdge(Intent_Model, Trans_List)
 
 	_ = g.AddEdge(React, ToToolCall)
 	_ = g.AddEdge(ToToolCall, MCP)
-	_ = g.AddEdge(MCP, ResultClean)
-	_ = g.AddEdge(ResultClean, compose.END)
+	_ = g.AddEdge(MCP, compose.END)
 
-	_ = g.AddEdge(Chat, compose.END)
+	_ = g.AddEdge(Chat, Trans_List)
 
 	return g.Compile(ctx,
 		compose.WithCheckPointStore(store),
