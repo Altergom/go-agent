@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Eino 总控图控制台</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      color: #1f2937;
+      background: radial-gradient(1200px 600px at 10% 10%, #e0e7ff 0%, rgba(224,231,255,0) 60%),
+                  radial-gradient(1200px 600px at 90% 20%, #fce7f3 0%, rgba(252,231,243,0) 55%),
+                  #f7f7fb;
+      min-height: 100vh;
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      background: rgba(255,255,255,0.7);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid #e5e7eb;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .brand {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      font-weight: 700;
+      color: #111827;
+    }
+    .brand-badge {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+      display: inline-block;
+    }
+    .nav {
+      display: flex;
+      gap: 10px;
+    }
+    .nav a {
+      text-decoration: none;
+      color: #374151;
+      padding: 8px 12px;
+      border-radius: 8px;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      transition: all 0.2s ease;
+      font-size: 13px;
+    }
+    .nav a:hover {
+      border-color: #6366f1;
+      color: #6366f1;
+      box-shadow: 0 4px 12px rgba(99,102,241,0.1);
+    }
+    .container {
+      max-width: 1000px;
+      margin: 32px auto;
+      padding: 0 24px;
+    }
+    .header {
+      margin-bottom: 32px;
+    }
+    .header h1 {
+      font-size: 28px;
+      margin: 0 0 8px;
+      color: #111827;
+    }
+    .header p {
+      color: #6b7280;
+      margin: 0;
+    }
+    .chat-container {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 20px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.05);
+      display: flex;
+      flex-direction: column;
+      height: 600px;
+      overflow: hidden;
+    }
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      background: #fcfcfd;
+    }
+    .message {
+      max-width: 80%;
+      padding: 12px 16px;
+      border-radius: 16px;
+      font-size: 14px;
+      line-height: 1.6;
+      position: relative;
+    }
+    .message-user {
+      align-self: flex-end;
+      background: #6366f1;
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+    .message-ai {
+      align-self: flex-start;
+      background: #fff;
+      color: #1f2937;
+      border: 1px solid #e5e7eb;
+      border-bottom-left-radius: 4px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    }
+    .message-info {
+      font-size: 10px;
+      margin-bottom: 4px;
+      color: rgba(0,0,0,0.4);
+    }
+    .message-user .message-info {
+      color: rgba(255,255,255,0.7);
+      text-align: right;
+    }
+    .chat-input-area {
+      padding: 20px 24px;
+      background: #fff;
+      border-top: 1px solid #f3f4f6;
+      display: flex;
+      gap: 12px;
+    }
+    .chat-input {
+      flex: 1;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .chat-input:focus {
+      border-color: #6366f1;
+    }
+    .send-btn {
+      background: #6366f1;
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      padding: 0 20px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .send-btn:hover {
+      background: #4f46e5;
+    }
+    .send-btn:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+    .workflow-tags {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .tag {
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: #f3f4f6;
+      color: #6b7280;
+    }
+    .tag-active {
+      background: #eef2ff;
+      color: #6366f1;
+      border: 1px solid #c7d2fe;
+    }
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .sql-code {
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 12px;
+      border-radius: 8px;
+      font-family: 'Fira Code', monospace;
+      margin-top: 8px;
+      font-size: 13px;
+      border-left: 4px solid #3b82f6;
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">
+      <span class="brand-badge"></span>
+      <span>Eino Final Graph</span>
+    </div>
+    <div class="nav">
+      <a href="/rag_ask.html">RAG 问答</a>
+      <a href="/rag_index.html">知识库管理</a>
+      <a href="/chat_test.html">纯模型测试</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="header">
+      <h1>总控图交互中心</h1>
+      <p>自动识别您的意图，并智能切换至 SQL 生成或普通对话流程。</p>
+      <div class="workflow-tags">
+        <span class="tag tag-active">意图识别 (Router)</span>
+        <span class="tag">→</span>
+        <span class="tag">Chat 流程</span>
+        <span class="tag">/</span>
+        <span class="tag">SQL ReAct 流程 (MCP)</span>
+      </div>
+    </div>
+
+    <div class="chat-container">
+      <div class="chat-messages" id="chatMessages">
+        <div class="message message-ai">
+          <div class="message-info">AI 助手</div>
+          <div>您好！我是您的智能助手。您可以问我普通问题，或者让我帮您查询数据（例如：“帮我查一下昨天销售额前十的产品”）。</div>
+        </div>
+      </div>
+      <div class="chat-input-area">
+        <input type="text" class="chat-input" id="userInput" placeholder="输入您的问题..." onkeydown="if(event.keyCode==13) sendMessage()">
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()">发送</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const chatMessages = document.getElementById('chatMessages');
+    const userInput = document.getElementById('userInput');
+    const sendBtn = document.getElementById('sendBtn');
+    let currentSessionID = ''; // 记录当前会话 ID
+
+    function appendMessage(role, content, isSQL = false, isApproval = false) {
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `message message-${role}`;
+      
+      const infoDiv = document.createElement('div');
+      infoDiv.className = 'message-info';
+      infoDiv.textContent = role === 'user' ? '您' : 'AI 助手';
+      
+      const contentDiv = document.createElement('div');
+      if (isSQL) {
+        contentDiv.className = 'sql-code';
+        contentDiv.innerHTML = `<pre>${content}</pre>`;
+      } else {
+        contentDiv.textContent = content;
+      }
+      
+      msgDiv.appendChild(infoDiv);
+      msgDiv.appendChild(contentDiv);
+
+      if (isApproval) {
+        const btnArea = document.createElement('div');
+        btnArea.style.marginTop = '12px';
+        btnArea.style.display = 'flex';
+        btnArea.style.gap = '8px';
+
+        const yesBtn = document.createElement('button');
+        yesBtn.className = 'send-btn';
+        yesBtn.style.padding = '4px 12px';
+        yesBtn.textContent = '批准执行';
+        yesBtn.onclick = () => sendMessage('YES');
+
+        const noBtn = document.createElement('button');
+        noBtn.className = 'send-btn';
+        noBtn.style.background = '#ef4444';
+        noBtn.style.padding = '4px 12px';
+        noBtn.textContent = '拒绝';
+        noBtn.onclick = () => sendMessage('NO');
+
+        btnArea.appendChild(yesBtn);
+        btnArea.appendChild(noBtn);
+        msgDiv.appendChild(btnArea);
+      }
+
+      chatMessages.appendChild(msgDiv);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    async function sendMessage(overrideText) {
+      const text = overrideText || userInput.value.trim();
+      if (!text || sendBtn.disabled) return;
+
+      appendMessage('user', text);
+      if (!overrideText) userInput.value = '';
+      sendBtn.disabled = true;
+
+      // 添加一个 AI 消息容器
+      const msgDiv = document.createElement('div');
+      msgDiv.className = 'message message-ai';
+      const infoDiv = document.createElement('div');
+      infoDiv.className = 'message-info';
+      infoDiv.textContent = 'AI 助手';
+      const contentDiv = document.createElement('div');
+      msgDiv.appendChild(infoDiv);
+      msgDiv.appendChild(contentDiv);
+      chatMessages.appendChild(msgDiv);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+
+      let fullContent = '';
+      
+      try {
+        const response = await fetch('/api/final/invoke', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            query: text,
+            session_id: currentSessionID 
+          })
+        });
+
+        // 检查是否是普通的 JSON 响应（如中断审批）
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const data = await response.json();
+          if (data.error) {
+            contentDiv.textContent = '抱歉，处理您的请求时出错了：' + data.error;
+          } else {
+            currentSessionID = data.session_id;
+            const isSQL = data.answer.toLowerCase().includes('select ') || 
+                          data.answer.toLowerCase().includes('from ');
+            
+            if (isSQL) {
+              contentDiv.className = 'sql-code';
+              contentDiv.innerHTML = `<pre>${data.answer}</pre>`;
+            } else {
+              contentDiv.textContent = data.answer;
+            }
+
+            if (data.status === 'need_approval') {
+              renderApprovalButtons(msgDiv);
+            }
+          }
+          sendBtn.disabled = false;
+          return;
+        }
+
+        // 处理流式响应
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = ''; 
+        
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          
+          buffer += decoder.decode(value, { stream: true });
+          
+          // SSE 规范以双换行符分隔消息块
+          let parts = buffer.split('\n\n');
+          // 留下最后一个可能不完整的块
+          buffer = parts.pop();
+          
+          for (const part of parts) {
+            const lines = part.split('\n');
+            let eventType = 'message';
+            let eventData = '';
+
+            for (const line of lines) {
+              if (line.startsWith('event:')) {
+                eventType = line.slice(6).trim();
+              } else if (line.startsWith('data:')) {
+                eventData = line.slice(5).trim();
+              }
+            }
+
+            if (eventType === 'done' || eventData === 'EOF') {
+              console.log("传输完成");
+              continue;
+            }
+
+            if (eventType === 'error') {
+              contentDiv.textContent = '后端报错: ' + eventData;
+              continue;
+            }
+
+            if (eventData && eventData !== 'Thinking...') {
+              fullContent += eventData;
+              
+              // 实时更新 UI
+              const isSQL = fullContent.toLowerCase().includes('select ') || 
+                            fullContent.toLowerCase().includes('from ');
+              
+              if (isSQL) {
+                contentDiv.className = 'sql-code';
+                contentDiv.innerHTML = `<pre>${fullContent}</pre>`;
+              } else {
+                contentDiv.textContent = fullContent;
+              }
+              chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+          }
+        }
+
+      } catch (e) {
+        contentDiv.textContent = '网络连接失败，请检查后端服务是否启动。';
+        console.error(e);
+      } finally {
+        sendBtn.disabled = false;
+        userInput.focus();
+      }
+    }
+
+    function renderApprovalButtons(msgDiv) {
+      const btnArea = document.createElement('div');
+      btnArea.style.marginTop = '12px';
+      btnArea.style.display = 'flex';
+      btnArea.style.gap = '8px';
+
+      const yesBtn = document.createElement('button');
+      yesBtn.className = 'send-btn';
+      yesBtn.style.padding = '4px 12px';
+      yesBtn.textContent = '批准执行';
+      yesBtn.onclick = () => sendMessage('YES');
+
+      const noBtn = document.createElement('button');
+      noBtn.className = 'send-btn';
+      noBtn.style.background = '#ef4444';
+      noBtn.style.padding = '4px 12px';
+      noBtn.textContent = '拒绝';
+      noBtn.onclick = () => sendMessage('NO');
+
+      btnArea.appendChild(yesBtn);
+      btnArea.appendChild(noBtn);
+      msgDiv.appendChild(btnArea);
+    }
+  </script>
+</body>
+</html>
