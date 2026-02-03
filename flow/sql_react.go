@@ -2,10 +2,12 @@ package flow
 
 import (
 	"context"
+	"fmt"
 	"go-agent/config"
 	"go-agent/model/chat_model"
 	"go-agent/rag/rag_flow"
 	"go-agent/tool"
+	"strings"
 
 	"github.com/cloudwego/eino/components/prompt"
 	"github.com/cloudwego/eino/compose"
@@ -41,13 +43,33 @@ func BuildReactGraph(ctx context.Context) (*compose.Graph[[]*schema.Message, []*
 
 	// 转换：[]*Document -> map[string]any (将检索结果包装为模板变量)
 	_ = g.AddLambdaNode(ToTplVar, compose.InvokableLambda(func(ctx context.Context, input []*schema.Document) (map[string]any, error) {
-		return nil, nil
+		var query string
+		// 从全局 State 获取原始 Query
+		_ = compose.ProcessState[*FinalGraphRequest](ctx, func(ctx context.Context, state *FinalGraphRequest) error {
+			query = state.Query
+			return nil
+		})
+
+		docsStr := ""
+		for _, d := range input {
+			docsStr += d.Content + "\n"
+		}
+
+		_ = compose.ProcessState[*FinalGraphRequest](ctx, func(ctx context.Context, state *FinalGraphRequest) error {
+			state.Docs = docsStr
+			return nil
+		})
+
+		return map[string]any{
+			"query": query,
+			"docs":  docsStr,
+		}, nil
 	}))
 
 	// SQL 模板节点
 	sqlTemp := prompt.FromMessages(schema.FString,
-		schema.SystemMessage(""),
-		schema.UserMessage(""),
+		schema.SystemMessage("你是一个SQL专家。请根据提供的表结构信息生成SQL。\n只输出SQL，不要有其他解释。\n你只能使用自然语言不能使用markdown格式"),
+		schema.UserMessage("相关表结构：\n{docs}\n\n用户需求：{query}"),
 	)
 	_ = g.AddChatTemplateNode(SQL_Tpl, sqlTemp)
 
@@ -61,19 +83,55 @@ func BuildReactGraph(ctx context.Context) (*compose.Graph[[]*schema.Message, []*
 	// 转换节点
 	_ = g.AddLambdaNode(Trans_List, compose.InvokableLambda(tool.MsgToMsgs))
 
-	// 用户审批节点 (Lambda + Interrupt)
+	// 用户审批节点
 	_ = g.AddLambdaNode(Approve, compose.InvokableLambda(func(ctx context.Context, input *schema.Message) (output *schema.Message, err error) {
-		return input, nil
+		var stateSQL string
+		_ = compose.ProcessState[*FinalGraphRequest](ctx, func(ctx context.Context, state *FinalGraphRequest) error {
+			stateSQL = state.SQL
+			return nil
+		})
+
+		if isResume, hasData, data := compose.GetResumeContext[string](ctx); isResume && hasData {
+			if strings.Contains(strings.ToUpper(data), "YES") {
+				// 如果批准了，返回SQL
+				return schema.AssistantMessage(stateSQL, nil), nil
+			}
+			return schema.AssistantMessage(data, nil), nil
+		}
+
+		if input == nil {
+			return nil, fmt.Errorf("input is nil")
+		}
+
+		// 保存SQL到状态中
+		_ = compose.ProcessState[*FinalGraphRequest](ctx, func(ctx context.Context, state *FinalGraphRequest) error {
+			state.SQL = input.Content
+			return nil
+		})
+
+		return nil, compose.Interrupt(ctx, input.Content)
 	}))
 
-	// 拒绝回流转换：*Message -> map[string]any (适配 SQL_Tpl)
+	// 拒绝回流转换：*Message -> map[string]any
 	_ = g.AddLambdaNode(ToRefineVar, compose.InvokableLambda(func(ctx context.Context, input *schema.Message) (output map[string]any, err error) {
-		return map[string]any{"query": input.Content}, nil
+		var stateDocs string
+		_ = compose.ProcessState[*FinalGraphRequest](ctx, func(ctx context.Context, state *FinalGraphRequest) error {
+			stateDocs = state.Docs
+			return nil
+		})
+
+		return map[string]any{
+			"query": input.Content,
+			"docs":  stateDocs,
+		}, nil
 	}))
 
-	// 审批分支 (Branch)
+	// 审批分支
 	_ = g.AddBranch(Approve, compose.NewGraphBranch(func(ctx context.Context, input *schema.Message) (endNode string, err error) {
-		return "", nil
+		if strings.Contains(input.Content, "YES") {
+			return Trans_List, nil
+		}
+		return ToRefineVar, nil
 	}, map[string]bool{
 		ToRefineVar: true,
 		Trans_List:  true,

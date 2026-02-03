@@ -54,10 +54,17 @@ func main() {
 	}
 
 	// 初始化langsmith
-	err = trace.NewLangSmith()
+	//err = trace.NewLangSmith()
+	//if err != nil {
+	//	log.Fatalf("langsmith init fail: %v", err)
+	//}
+
+	// 初始化 CozeLoop
+	closeCoze, err := trace.NewCozeLoop(ctx)
 	if err != nil {
-		log.Fatalf("langsmith init fail: %v", err)
+		log.Fatalf("cozeloop init fail: %v", err)
 	}
+	defer closeCoze()
 
 	api.Run()
 }
