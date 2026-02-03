@@ -2,6 +2,7 @@ package flow
 
 import (
 	"context"
+	"fmt"
 	"go-agent/config"
 	"go-agent/model/chat_model"
 	"go-agent/rag/rag_flow"
@@ -54,6 +55,11 @@ func BuildReactGraph(ctx context.Context) (*compose.Graph[[]*schema.Message, []*
 			docsStr += d.Content + "\n"
 		}
 
+		_ = compose.ProcessState[*FinalGraphRequest](ctx, func(ctx context.Context, state *FinalGraphRequest) error {
+			state.Docs = docsStr
+			return nil
+		})
+
 		return map[string]any{
 			"query": query,
 			"docs":  docsStr,
@@ -77,17 +83,50 @@ func BuildReactGraph(ctx context.Context) (*compose.Graph[[]*schema.Message, []*
 	// 转换节点
 	_ = g.AddLambdaNode(Trans_List, compose.InvokableLambda(tool.MsgToMsgs))
 
-	// 用户审批节点 (Lambda + Interrupt)
+	// 用户审批节点
 	_ = g.AddLambdaNode(Approve, compose.InvokableLambda(func(ctx context.Context, input *schema.Message) (output *schema.Message, err error) {
+		var stateSQL string
+		_ = compose.ProcessState[*FinalGraphRequest](ctx, func(ctx context.Context, state *FinalGraphRequest) error {
+			stateSQL = state.SQL
+			return nil
+		})
+
+		if isResume, hasData, data := compose.GetResumeContext[string](ctx); isResume && hasData {
+			if strings.Contains(strings.ToUpper(data), "YES") {
+				// 如果批准了，返回SQL
+				return schema.AssistantMessage(stateSQL, nil), nil
+			}
+			return schema.AssistantMessage(data, nil), nil
+		}
+
+		if input == nil {
+			return nil, fmt.Errorf("input is nil")
+		}
+
+		// 保存SQL到状态中
+		_ = compose.ProcessState[*FinalGraphRequest](ctx, func(ctx context.Context, state *FinalGraphRequest) error {
+			state.SQL = input.Content
+			return nil
+		})
+
 		return nil, compose.Interrupt(ctx, input.Content)
 	}))
 
-	// 拒绝回流转换：*Message -> map[string]any (适配 SQL_Tpl)
+	// 拒绝回流转换：*Message -> map[string]any
 	_ = g.AddLambdaNode(ToRefineVar, compose.InvokableLambda(func(ctx context.Context, input *schema.Message) (output map[string]any, err error) {
-		return map[string]any{"query": input.Content}, nil
+		var stateDocs string
+		_ = compose.ProcessState[*FinalGraphRequest](ctx, func(ctx context.Context, state *FinalGraphRequest) error {
+			stateDocs = state.Docs
+			return nil
+		})
+
+		return map[string]any{
+			"query": input.Content,
+			"docs":  stateDocs,
+		}, nil
 	}))
 
-	// 审批分支 (Branch)
+	// 审批分支
 	_ = g.AddBranch(Approve, compose.NewGraphBranch(func(ctx context.Context, input *schema.Message) (endNode string, err error) {
 		if strings.Contains(input.Content, "YES") {
 			return Trans_List, nil

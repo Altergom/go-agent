@@ -53,7 +53,7 @@ func FinalGraphInvoke(c *gin.Context) {
 		// 只有当输入是确认指令时才 Resume
 		if req.Query == "YES" || req.Query == "执行" || req.Query == "批准执行" {
 			fmt.Printf(">>> Resume detected: sessionID=%s, interruptID=%s\n", sessionID, id)
-			invokeCtx = compose.Resume(invokeCtx, id)
+			invokeCtx = compose.ResumeWithData(invokeCtx, id, req.Query)
 		}
 	}
 

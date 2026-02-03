@@ -2,7 +2,6 @@ package flow
 
 import (
 	"context"
-	"fmt"
 	"go-agent/config"
 	"go-agent/model/chat_model"
 	"go-agent/tool"
@@ -17,6 +16,8 @@ import (
 type FinalGraphRequest struct {
 	Query     string `json:"query" binding:"required"`
 	SessionID string `json:"session_id,omitempty"`
+	SQL       string `json:"sql,omitempty"`  // 用于存储生成的 SQL
+	Docs      string `json:"docs,omitempty"` // 用于存储检索到的表结构
 }
 
 const (
@@ -122,9 +123,5 @@ func BuildFinalGraph(ctx context.Context, store compose.CheckPointStore) (compos
 	_ = g.AddEdge(Chat, ChatToEnd)
 	_ = g.AddEdge(ChatToEnd, compose.END)
 
-	return g.Compile(ctx,
-		compose.WithCheckPointStore(store),
-		compose.WithInterruptBeforeNodes([]string{
-			fmt.Sprintf("%s/%s", React, Approve),
-		}))
+	return g.Compile(ctx, compose.WithCheckPointStore(store))
 }
