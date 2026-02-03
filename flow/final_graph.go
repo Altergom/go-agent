@@ -58,7 +58,9 @@ func BuildFinalGraph(ctx context.Context, store compose.CheckPointStore) (compos
 	}))
 	//  React 子图
 	react, _ := BuildReactGraph(ctx)
-	_ = g.AddGraphNode(React, react)
+	_ = g.AddGraphNode(React, react, compose.WithStatePreHandler(func(ctx context.Context, in []*schema.Message, state *FinalGraphRequest) ([]*schema.Message, error) {
+		return []*schema.Message{schema.UserMessage(state.Query)}, nil
+	}))
 
 	// 聊天路径
 	chat, err := chat_model.GetChatModel(ctx, config.Cfg.ChatModelType)
