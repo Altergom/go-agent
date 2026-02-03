@@ -9,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-var memStore = memory.NewInMemoryStore() // 全局记忆存储
+var memStore = memory.NewMemoryStore() // 全局记忆存储
 
 func RAGAsk(c *gin.Context) {
 	var req struct {
@@ -26,7 +26,8 @@ func RAGAsk(c *gin.Context) {
 		langsmith.AddTag("session:"+req.SessionID),
 	)
 
-	ragRunner, err := flow.BuildRAGChatFlow(ctx, memStore, chat_model.CM)
+	chat, _ := chat_model.GetChatModel(ctx, "ark")
+	ragRunner, err := flow.BuildRAGChatFlow(ctx, memStore, chat)
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return

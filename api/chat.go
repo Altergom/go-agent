@@ -1,6 +1,7 @@
 package api
 
 import (
+	"go-agent/config"
 	"go-agent/model/chat_model"
 	"io"
 	"net/http"
@@ -35,12 +36,6 @@ func ChatGenerate(c *gin.Context) {
 		return
 	}
 
-	// 检查模型是否已初始化
-	if chat_model.CM == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "ChatModel 未初始化"})
-		return
-	}
-
 	// 使用请求的上下文
 	ctx := c.Request.Context()
 
@@ -63,7 +58,8 @@ func ChatGenerate(c *gin.Context) {
 	messages = append(messages, schema.UserMessage(req.Question))
 
 	// 调用模型的 Generate 方法
-	response, err := chat_model.CM.Generate(ctx, messages)
+	chat, _ := chat_model.GetChatModel(ctx, config.Cfg.ChatModelType)
+	response, err := chat.Generate(ctx, messages)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate answer: " + err.Error()})
 		return
@@ -81,12 +77,6 @@ func ChatStream(c *gin.Context) {
 	var req ChatTestRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format: " + err.Error()})
-		return
-	}
-
-	// 检查模型是否已初始化
-	if chat_model.CM == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "ChatModel 未初始化"})
 		return
 	}
 
@@ -124,7 +114,8 @@ func ChatStream(c *gin.Context) {
 	// 添加当前问题
 	messages = append(messages, schema.UserMessage(req.Question))
 
-	streamReader, err := chat_model.CM.Stream(c.Request.Context(), messages)
+	chat, err := chat_model.GetChatModel(c, config.Cfg.ChatModelType)
+	streamReader, err := chat.Stream(c.Request.Context(), messages)
 	if err != nil {
 		c.SSEvent("error", gin.H{"error": err.Error()})
 		flusher.Flush()

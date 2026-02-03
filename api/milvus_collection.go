@@ -1,7 +1,7 @@
 package api
 
 import (
-	"go-agent/rag/tools/db"
+	"go-agent/rag/rag_tools/db"
 	"net/http"
 
 	"github.com/gin-gonic/gin"

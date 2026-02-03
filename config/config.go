@@ -10,6 +10,7 @@ import (
 type Config struct {
 	// 模型类型配置
 	ChatModelType      string
+	IntentModelType    string
 	EmbeddingModelType string
 	VectorDBType       string
 
@@ -22,6 +23,8 @@ type Config struct {
 	ESConf     ESConfig
 
 	LangSmithConf LangSmithConfig
+
+	MySQLConf MySQLConfig
 }
 
 type ArkConfig struct {
@@ -74,6 +77,14 @@ type LangSmithConfig struct {
 	APIUrl string
 }
 
+type MySQLConfig struct {
+	Host     string
+	Port     string
+	Username string
+	Password string
+	Database string
+}
+
 var Cfg *Config
 
 func LoadConfig() (*Config, error) {
@@ -89,6 +100,7 @@ func LoadConfig() (*Config, error) {
 
 	config := &Config{
 		ChatModelType:      getEnv("CHAT_MODEL_TYPE", "ark"),
+		IntentModelType:    getEnv("INTENT_MODEL_TYPE", "ark"),
 		EmbeddingModelType: getEnv("EMBEDDING_MODEL_TYPE", "ark"),
 		VectorDBType:       getEnv("VECTOR_DB_TYPE", "milvus"),
 
@@ -132,6 +144,13 @@ func LoadConfig() (*Config, error) {
 		LangSmithConf: LangSmithConfig{
 			APIKey: getEnv("LANG_SMITH_KEY", ""),
 			APIUrl: getEnv("LANG_SMITH_URL", ""),
+		},
+		MySQLConf: MySQLConfig{
+			Host:     getEnv("MYSQL_HOST", "localhost"),
+			Port:     getEnv("MYSQL_PORT", "3306"),
+			Username: getEnv("MYSQL_USERNAME", ""),
+			Password: getEnv("MYSQL_PASSWORD", ""),
+			Database: getEnv("MYSQL_DATABASE", ""),
 		},
 	}
 

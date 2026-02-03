@@ -3,7 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
-	"go-agent/rag/compose"
+	"go-agent/rag/rag_flow"
 	"io"
 	"log"
 	"os"
@@ -102,7 +102,7 @@ func InsertDocument(c *gin.Context) {
 		}
 	}()
 
-	indexingRunner, err := compose.BuildIndexingGraph(ctx)
+	indexingRunner, err := rag_flow.BuildIndexingGraph(ctx)
 	if err != nil {
 		return
 	}

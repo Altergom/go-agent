@@ -3,15 +3,21 @@ package flow
 import (
 	"context"
 	"go-agent/model/chat_model"
+	"go-agent/rag/rag_tools"
 	"go-agent/tool/memory"
-	"go-agent/tool/rewriter"
 
-	compose2 "go-agent/rag/compose"
+	"go-agent/rag/rag_flow"
 
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 )
+
+const RewritePrompt = `参考以下背景摘要和最近对话，将用户最后一次提问重写为一个独立的、适合向量检索的搜索语句。
+背景摘要: %s
+最近对话: %s
+用户提问: %s
+重写后的搜索语句（直接输出语句）: `
 
 type RAGChatInput struct {
 	SessionID string
@@ -34,10 +40,10 @@ func BuildRAGChatFlow(ctx context.Context, store memory.Store, taskModel model.B
 		Chat       = "chat"
 	)
 
-	qr := &rewriter.QueryRewriter{Model: taskModel}
+	cm, _ := chat_model.GetChatModel(ctx, "rewrite")
 	sm := &memory.Summarizer{Model: taskModel, MaxHistoryLen: 3}
 
-	retrieverSubGraph, err := compose2.BuildRetrieverGraph(ctx)
+	retrieverSubGraph, err := rag_flow.BuildRetrieverGraph(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +73,7 @@ func BuildRAGChatFlow(ctx context.Context, store memory.Store, taskModel model.B
 				return nil
 			}
 
-			newQuery, err := qr.Rephrase(ctx, state.Session.Summary, state.Session.History, in.Query)
+			newQuery, err := rag_tools.Rewrite(ctx, state.Session.Summary, RewritePrompt, state.Session.History, in.Query, cm)
 			if err != nil {
 				state.Query = in.Query
 				query = in.Query
@@ -80,17 +86,7 @@ func BuildRAGChatFlow(ctx context.Context, store memory.Store, taskModel model.B
 		return query, nil
 	}))
 
-	_ = g.AddLambdaNode(Retrieve, compose.InvokableLambda(func(ctx context.Context, query string) ([]*schema.Document, error) {
-		docs, err := retrieverSubGraph.Invoke(ctx, query)
-		if err != nil {
-			return nil, err
-		}
-		_ = compose.ProcessState[*GraphState](ctx, func(ctx context.Context, state *GraphState) error {
-			state.Docs = docs
-			return nil
-		})
-		return docs, nil
-	}))
+	_ = g.AddGraphNode(Retrieve, retrieverSubGraph)
 
 	// []*schema.Document转为[]*schema.Message
 	_ = g.AddLambdaNode("ConstructMessages", compose.InvokableLambda(func(ctx context.Context, docs []*schema.Document) ([]*schema.Message, error) {
@@ -115,7 +111,11 @@ func BuildRAGChatFlow(ctx context.Context, store memory.Store, taskModel model.B
 	}))
 
 	// 对话生成
-	_ = g.AddChatModelNode(Chat, chat_model.CM, compose.WithStatePreHandler(func(ctx context.Context, in []*schema.Message, state *GraphState) ([]*schema.Message, error) {
+	chat, err := chat_model.GetChatModel(ctx, "ark")
+	if err != nil {
+		return nil, err
+	}
+	_ = g.AddChatModelNode(Chat, chat, compose.WithStatePreHandler(func(ctx context.Context, in []*schema.Message, state *GraphState) ([]*schema.Message, error) {
 		return in, nil
 	}),
 		compose.WithStatePostHandler(func(ctx context.Context, out *schema.Message, state *GraphState) (*schema.Message, error) {

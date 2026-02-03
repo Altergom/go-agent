@@ -36,8 +36,10 @@ func Run() {
 	htmlPath := filepath.Join(workDir, "chat_test.html")
 	ragIndexPath := filepath.Join(workDir, "rag_index.html")
 	ragAskPath := filepath.Join(workDir, "rag_ask.html")
+	finalGraphPath := filepath.Join(workDir, "final_graph.html")
 	hasRagAsk := false
 	hasChatTest := false
+	hasFinalGraph := false
 
 	// 转换为绝对路径
 	htmlPath, err = filepath.Abs(htmlPath)
@@ -54,6 +56,11 @@ func Run() {
 	if err != nil {
 		log.Printf("获取绝对路径失败: %v", err)
 		ragAskPath = filepath.Join(workDir, "rag_ask.html")
+	}
+	finalGraphPath, err = filepath.Abs(finalGraphPath)
+	if err != nil {
+		log.Printf("获取绝对路径失败: %v", err)
+		finalGraphPath = filepath.Join(workDir, "final_graph.html")
 	}
 
 	// 检查文件是否存在
@@ -103,8 +110,27 @@ func Run() {
 		log.Printf("RAG 问答页面路由已注册: http://localhost:8080/rag_ask.html")
 	}
 
-	// 根路径优先指向 RAG 问答页面
-	if hasRagAsk {
+	// 总控图页面
+	if fileInfo, err := os.Stat(finalGraphPath); os.IsNotExist(err) {
+		log.Printf("警告: 总控图页面文件不存在: %s", finalGraphPath)
+		r.GET("/final_graph.html", func(c *gin.Context) {
+			c.String(404, "总控图页面文件未找到: %s", finalGraphPath)
+		})
+	} else {
+		log.Printf("找到总控图页面文件: %s (大小: %d 字节)", finalGraphPath, fileInfo.Size())
+		hasFinalGraph = true
+		r.GET("/final_graph.html", func(c *gin.Context) {
+			c.File(finalGraphPath)
+		})
+		log.Printf("总控图页面路由已注册: http://localhost:8080/final_graph.html")
+	}
+
+	// 根路径优先指向总控图页面
+	if hasFinalGraph {
+		r.GET("/", func(c *gin.Context) {
+			c.Redirect(302, "/final_graph.html")
+		})
+	} else if hasRagAsk {
 		r.GET("/", func(c *gin.Context) {
 			c.Redirect(302, "/rag_ask.html")
 		})
@@ -138,9 +164,8 @@ func Run() {
 	// RAG 召回问答
 	r.POST("/api/rag/ask", RAGAsk)
 	r.POST("/api/rag/chat/stream", RAGChatStream) // 新增流式接口
-	// Milvus 集合管理
-	r.GET("/api/milvus/collections", ListMilvusCollections)
-	r.DELETE("/api/milvus/collections/:name", DeleteMilvusCollection)
+	// 总控图（意图识别 + SQL/Chat）
+	r.POST("/api/final/invoke", FinalGraphInvoke)
 
 	err = r.Run(":8080")
 	if err != nil {

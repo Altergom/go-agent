@@ -61,9 +61,26 @@ cp .env.example .env
 ### 2. 基础组件准备 (RAG 依赖)
 本项目 RAG 部分依赖 Milvus (向量数据库) 和 Elasticsearch (全文搜索)，推荐使用 Docker 快速部署：
 
-`docker-compose up -d`
+#### Elasticsearch 安装
+```bash
+docker run -d --name elasticsearch \
+  -p 9200:9200 \
+  -e "discovery.type=single-node" \
+  -e "ES_JAVA_OPTS=-Xms512m -Xmx512m" \
+  elasticsearch:7.17.9
+```
+
+#### Milvus 安装 (Standalone)
+```bash
+# 1. 下载 docker-compose 配置文件
+wget https://github.com/milvus-io/milvus/releases/download/v2.5.4/milvus-standalone-docker-compose.yml -O docker-compose.yml
 
 # 2. 启动服务
+docker-compose up -d
+```
+*详细文档请参考：[Milvus 官方安装指南](https://milvus.io/docs/zh/install_standalone-docker-compose.md)*
+
+### 3. 填写配置
 在 `.env` 文件中配置您的模型服务商信息及基础组件地址：
 
 ```env
@@ -80,7 +97,7 @@ ES_ADDRESS=http://localhost:9200
 ES_INDEX=go_agent_docs
 ```
 
-### 启动服务
+### 4. 启动服务
 ```bash
 go mod tidy
 go run .

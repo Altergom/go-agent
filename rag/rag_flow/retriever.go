@@ -1,9 +1,10 @@
-package compose
+package rag_flow
 
 import (
 	"context"
 	"go-agent/config"
-	"go-agent/rag/tools/retriever"
+	"go-agent/rag/rag_tools/retriever"
+	"go-agent/tool"
 	"sort"
 	"strconv"
 
@@ -11,15 +12,16 @@ import (
 	"github.com/cloudwego/eino/schema"
 )
 
-// BuildRetrieverGraph 仅负责检索，输入 query，输出文档列表
-func BuildRetrieverGraph(ctx context.Context) (compose.Runnable[string, []*schema.Document], error) {
-	const (
-		MilvusRetriever = "MilvusRetriever"
-		ESRetriever     = "ESRetriever"
-		Reranker        = "Reranker"
-	)
+const (
+	MilvusRetriever = "MilvusRetriever"
+	ESRetriever     = "ESRetriever"
+	Reranker        = "Reranker"
+	Trans_String    = "Trans_String"
+)
 
-	g := compose.NewGraph[string, []*schema.Document]()
+// BuildRetrieverGraph 仅负责检索，输入 query，输出文档列表
+func BuildRetrieverGraph(ctx context.Context) (*compose.Graph[[]*schema.Message, []*schema.Document], error) {
+	g := compose.NewGraph[[]*schema.Message, []*schema.Document]()
 
 	// 构建召回节点
 	milvus, err := retriever.GetRetriever(ctx, "milvus")
@@ -30,8 +32,12 @@ func BuildRetrieverGraph(ctx context.Context) (compose.Runnable[string, []*schem
 	if err != nil {
 		return nil, err
 	}
+
 	_ = g.AddRetrieverNode(MilvusRetriever, milvus, compose.WithOutputKey("milvus_retriever"))
 	_ = g.AddRetrieverNode(ESRetriever, es, compose.WithOutputKey("es_retriever"))
+
+	_ = g.AddLambdaNode(Trans_String, compose.InvokableLambda(tool.MsgsToQuery))
+
 	_ = g.AddLambdaNode(Reranker, compose.InvokableLambda(func(ctx context.Context, input map[string]any) ([]*schema.Document, error) {
 		// RRF 混合检索重排算法
 		// 具体讲解见algorithm/rrf.go
@@ -89,20 +95,12 @@ func BuildRetrieverGraph(ctx context.Context) (compose.Runnable[string, []*schem
 	}))
 
 	// 构建节点指向
-	_ = g.AddEdge(compose.START, MilvusRetriever)
-	_ = g.AddEdge(compose.START, ESRetriever)
+	_ = g.AddEdge(compose.START, Trans_String)
+	_ = g.AddEdge(Trans_String, MilvusRetriever)
+	_ = g.AddEdge(Trans_String, ESRetriever)
 	_ = g.AddEdge(MilvusRetriever, Reranker)
 	_ = g.AddEdge(ESRetriever, Reranker)
 	_ = g.AddEdge(Reranker, compose.END)
 
-	r, err := g.Compile(
-		ctx,
-		compose.WithGraphName("RAGRetriever"),
-		compose.WithNodeTriggerMode(compose.AllPredecessor),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return r, nil
+	return g, nil
 }

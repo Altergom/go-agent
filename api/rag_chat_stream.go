@@ -30,7 +30,8 @@ func RAGChatStream(c *gin.Context) {
 		langsmith.AddTag("session:"+req.SessionID),
 	)
 
-	ragRunner, err := flow.BuildRAGChatFlow(ctx, memStore, chat_model.CM)
+	chat, _ := chat_model.GetChatModel(ctx, "ark")
+	ragRunner, err := flow.BuildRAGChatFlow(ctx, memStore, chat)
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
@@ -57,6 +58,7 @@ func RAGChatStream(c *gin.Context) {
 		msg, err := stream.Recv()
 		if err != nil {
 			if err == io.EOF {
+				c.SSEvent("done", "EOF")
 				return false
 			}
 			log.Printf("stream recv error: %v", err)

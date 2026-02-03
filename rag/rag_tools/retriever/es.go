@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"go-agent/config"
 	"go-agent/model/embedding_model"
-	"go-agent/rag/tools/db"
+	"go-agent/rag/rag_tools/db"
 	"strconv"
 
 	"github.com/cloudwego/eino-ext/components/retriever/es8"
@@ -26,11 +26,16 @@ func initES() {
 
 		topK, _ := strconv.Atoi(config.Cfg.MilvusConf.TopK) // 复用 TopK 配置或新增 ES TopK
 
+		emb, err := embedding_model.GetEmbeddingModel(context.Background(), config.Cfg.EmbeddingModelType)
+		if err != nil {
+			return nil, err
+		}
+
 		return es8.NewRetriever(ctx, &es8.RetrieverConfig{
 			Client:    db.ES,
 			Index:     config.Cfg.ESConf.Index,
 			TopK:      topK,
-			Embedding: embedding_model.Embedding,
+			Embedding: emb,
 			// 使用向量相似度搜索
 			SearchMode: search_mode.SearchModeDenseVectorSimilarity(
 				search_mode.DenseVectorSimilarityTypeCosineSimilarity,
