@@ -29,6 +29,10 @@ const (
 	MCP          = "MCP"
 )
 
+func init() {
+	schema.Register[*FinalGraphRequest]()
+}
+
 func BuildFinalGraph(ctx context.Context, store compose.CheckPointStore) (compose.Runnable[FinalGraphRequest, []*schema.Message], error) {
 	g := compose.NewGraph[FinalGraphRequest, []*schema.Message](
 		compose.WithGenLocalState(func(ctx context.Context) *FinalGraphRequest {
