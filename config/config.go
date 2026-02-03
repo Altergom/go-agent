@@ -10,6 +10,7 @@ import (
 type Config struct {
 	// 模型类型配置
 	ChatModelType      string
+	IntentModelType    string
 	EmbeddingModelType string
 	VectorDBType       string
 
@@ -99,6 +100,7 @@ func LoadConfig() (*Config, error) {
 
 	config := &Config{
 		ChatModelType:      getEnv("CHAT_MODEL_TYPE", "ark"),
+		IntentModelType:    getEnv("INTENT_MODEL_TYPE", "ark"),
 		EmbeddingModelType: getEnv("EMBEDDING_MODEL_TYPE", "ark"),
 		VectorDBType:       getEnv("VECTOR_DB_TYPE", "milvus"),
 

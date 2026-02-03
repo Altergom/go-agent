@@ -20,10 +20,14 @@ func initES() {
 			}
 		}
 
+		emb, err := embedding_model.GetEmbeddingModel(context.Background(), config.Cfg.EmbeddingModelType)
+		if err != nil {
+			return nil, err
+		}
 		return es8.NewIndexer(ctx, &es8.IndexerConfig{
 			Client:    db.ES,
 			Index:     config.Cfg.ESConf.Index,
-			Embedding: embedding_model.Embedding,
+			Embedding: emb,
 			DocumentToFields: func(ctx context.Context, doc *schema.Document) (map[string]es8.FieldValue, error) {
 				// 定义文档如何映射到 ES 字段
 				return map[string]es8.FieldValue{

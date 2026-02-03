@@ -22,9 +22,13 @@ func initMilvus() {
 			topK = 10
 		}
 		sp, _ := entity.NewIndexAUTOINDEXSearchParam(1)
+		emb, err := embedding_model.GetEmbeddingModel(context.Background(), config.Cfg.EmbeddingModelType)
+		if err != nil {
+			return nil, err
+		}
 		ret, err := milvus.NewRetriever(ctx, &milvus.RetrieverConfig{
 			Client:       db.Milvus,
-			Embedding:    embedding_model.Embedding,
+			Embedding:    emb,
 			TopK:         topK,
 			Collection:   config.Cfg.MilvusConf.CollectionName,
 			VectorField:  "vector",

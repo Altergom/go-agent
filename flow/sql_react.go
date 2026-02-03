@@ -2,6 +2,7 @@ package flow
 
 import (
 	"context"
+	"go-agent/config"
 	"go-agent/model/chat_model"
 	"go-agent/rag/rag_flow"
 	"go-agent/tool"
@@ -51,7 +52,11 @@ func BuildReactGraph(ctx context.Context) (*compose.Graph[[]*schema.Message, []*
 	_ = g.AddChatTemplateNode(SQL_Tpl, sqlTemp)
 
 	// SQL 生成模型 (ChatModel)
-	_ = g.AddChatModelNode(SQL_Model, chat_model.CM)
+	chat, err := chat_model.GetChatModel(ctx, config.Cfg.ChatModelType)
+	if err != nil {
+		return nil, err
+	}
+	_ = g.AddChatModelNode(SQL_Model, chat)
 
 	// 转换节点
 	_ = g.AddLambdaNode(Trans_List, compose.InvokableLambda(tool.MsgToMsgs))

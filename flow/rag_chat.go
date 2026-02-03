@@ -111,7 +111,11 @@ func BuildRAGChatFlow(ctx context.Context, store memory.Store, taskModel model.B
 	}))
 
 	// 对话生成
-	_ = g.AddChatModelNode(Chat, chat_model.CM, compose.WithStatePreHandler(func(ctx context.Context, in []*schema.Message, state *GraphState) ([]*schema.Message, error) {
+	chat, err := chat_model.GetChatModel(ctx, "ark")
+	if err != nil {
+		return nil, err
+	}
+	_ = g.AddChatModelNode(Chat, chat, compose.WithStatePreHandler(func(ctx context.Context, in []*schema.Message, state *GraphState) ([]*schema.Message, error) {
 		return in, nil
 	}),
 		compose.WithStatePostHandler(func(ctx context.Context, out *schema.Message, state *GraphState) (*schema.Message, error) {

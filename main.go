@@ -4,8 +4,6 @@ import (
 	"context"
 	"go-agent/api"
 	"go-agent/config"
-	"go-agent/model/chat_model"
-	"go-agent/model/embedding_model"
 	"go-agent/rag/rag_tools/db"
 	"go-agent/rag/rag_tools/indexer"
 	"go-agent/rag/rag_tools/retriever"
@@ -30,18 +28,6 @@ func main() {
 		log.Fatalf("Milvus init fail: %v", err)
 	}
 	defer db.Milvus.Close()
-
-	// 初始化模型
-	chat_model.CM, err = chat_model.NewChatModel(ctx)
-	if err != nil {
-		log.Fatalf("ChatModel init fail: %v", err)
-	}
-
-	// 初始化嵌入模型
-	embedding_model.Embedding, err = embedding_model.NewEmbeddingModel(ctx)
-	if err != nil {
-		log.Fatalf("embedder init fail: %v", err)
-	}
 
 	// 初始化检索器
 	indexer.NewIndexer()

@@ -15,7 +15,7 @@ type InMemoryStore struct {
 	data map[string]*Session
 }
 
-func NewInMemoryStore() *InMemoryStore {
+func NewMemoryStore() *InMemoryStore {
 	return &InMemoryStore{data: make(map[string]*Session)}
 }
 

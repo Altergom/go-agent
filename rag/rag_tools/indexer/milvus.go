@@ -67,9 +67,14 @@ func initMilvus() {
 }
 
 func buildMilvusIndexerConfig(dim int) *milvus.IndexerConfig {
+	emb, err := embedding_model.GetEmbeddingModel(context.Background(), config.Cfg.EmbeddingModelType)
+	if err != nil {
+		return nil
+	}
+
 	return &milvus.IndexerConfig{
 		Client:     db.Milvus,
-		Embedding:  embedding_model.Embedding,
+		Embedding:  emb,
 		Collection: config.Cfg.MilvusConf.CollectionName,
 		MetricType: milvus.COSINE,
 		Fields: []*entity.Field{
@@ -141,10 +146,12 @@ func waitCollectionDropped(ctx context.Context, name string, timeout time.Durati
 }
 
 func getEmbeddingDim(ctx context.Context) (int, error) {
-	if embedding_model.Embedding == nil {
-		return 0, fmt.Errorf("embedding not initialized")
+	emb, err := embedding_model.GetEmbeddingModel(context.Background(), config.Cfg.EmbeddingModelType)
+	if err != nil {
+		return 0, err
 	}
-	vecs, err := embedding_model.Embedding.EmbedStrings(ctx, []string{"dim"})
+
+	vecs, err := emb.EmbedStrings(ctx, []string{"dim"})
 	if err != nil {
 		return 0, fmt.Errorf("failed to get embedding dim: %w", err)
 	}

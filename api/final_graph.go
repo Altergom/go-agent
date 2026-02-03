@@ -3,20 +3,14 @@ package api
 import (
 	"context"
 	"fmt"
-	"go-agent/SQL/sql_flow"
 	"go-agent/flow"
+	"go-agent/tool/memory"
 	"io"
 	"net/http"
 
 	"github.com/cloudwego/eino/compose"
-	"github.com/cloudwego/eino/schema"
 	"github.com/gin-gonic/gin"
 )
-
-type FinalGraphRequest struct {
-	Query     string `json:"query" binding:"required"`
-	SessionID string `json:"session_id,omitempty"`
-}
 
 type FinalGraphResponse struct {
 	Query     string `json:"query"`
@@ -25,19 +19,19 @@ type FinalGraphResponse struct {
 	SessionID string `json:"session_id,omitempty"`
 }
 
-var globalStore = sql_flow.NewInMemoryStore()
 var interruptIDMap = make(map[string]string)
+var store = memory.NewInMemoryStore()
 
 // FinalGraphInvoke 处理总控图的调用请求，支持流式输出
 func FinalGraphInvoke(c *gin.Context) {
-	var req FinalGraphRequest
+	var req flow.FinalGraphRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format: " + err.Error()})
 		return
 	}
 
 	// 构建并编译总控图
-	runnable, err := flow.BuildFinalGraph(c, globalStore)
+	runnable, err := flow.BuildFinalGraph(c, store)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to build final graph: " + err.Error()})
 		return
@@ -53,7 +47,6 @@ func FinalGraphInvoke(c *gin.Context) {
 	fmt.Printf(">>> FinalGraphInvoke: sessionID=%s, query=%s\n", sessionID, req.Query)
 
 	var invokeCtx = context.WithValue(ctx, "session_id", sessionID)
-	var input = req.Query
 
 	// 检查是否有挂起的中断
 	if id, ok := interruptIDMap[sessionID]; ok {
@@ -66,7 +59,7 @@ func FinalGraphInvoke(c *gin.Context) {
 
 	// 核心修改：使用 Stream 而非 Invoke 获取流式读取器
 	// 输入包装为 Message 数组对象
-	reader, err := runnable.Stream(invokeCtx, []*schema.Message{schema.UserMessage(input)}, compose.WithCheckPointID(sessionID))
+	reader, err := runnable.Stream(invokeCtx, req, compose.WithCheckPointID(sessionID))
 	if err != nil {
 		// 处理中断逻辑（与之前一致）
 		if info, ok := compose.ExtractInterruptInfo(err); ok {
@@ -91,6 +84,11 @@ func FinalGraphInvoke(c *gin.Context) {
 	c.Header("Content-Type", "text/event-stream")
 	c.Header("Cache-Control", "no-cache")
 	c.Header("Connection", "keep-alive")
+	c.Header("Transfer-Encoding", "chunked")
+
+	// 立即刷新响应头，防止前端超时
+	c.Writer.WriteHeaderNow()
+	c.Writer.Flush()
 
 	// 成功执行后，如果是从 Resume 恢复的，清理 map
 	delete(interruptIDMap, sessionID)
@@ -100,9 +98,11 @@ func FinalGraphInvoke(c *gin.Context) {
 		chunk, err := reader.Recv()
 		if err != nil {
 			if err == io.EOF {
+				c.SSEvent("done", "EOF")
 				return false // 流结束
 			}
 			fmt.Printf(">>> Stream Recv Error: %v\n", err)
+			c.SSEvent("error", err.Error())
 			return false
 		}
 
@@ -110,6 +110,10 @@ func FinalGraphInvoke(c *gin.Context) {
 		for _, msg := range chunk {
 			if msg.Content != "" {
 				c.SSEvent("message", msg.Content)
+				// 强制刷新缓冲区，确保数据立刻发出去
+				if f, ok := w.(http.Flusher); ok {
+					f.Flush()
+				}
 			}
 		}
 		return true
