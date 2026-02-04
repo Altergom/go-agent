@@ -94,7 +94,7 @@ func BuildReactGraph(ctx context.Context) (*compose.Graph[[]*schema.Message, []*
 		if isResume, hasData, data := compose.GetResumeContext[string](ctx); isResume && hasData {
 			if strings.Contains(strings.ToUpper(data), "YES") {
 				// 如果批准了，返回SQL
-				return schema.AssistantMessage(stateSQL, nil), nil
+				return schema.AssistantMessage("YES: "+stateSQL, nil), nil
 			}
 			return schema.AssistantMessage(data, nil), nil
 		}
@@ -128,7 +128,7 @@ func BuildReactGraph(ctx context.Context) (*compose.Graph[[]*schema.Message, []*
 
 	// 审批分支
 	_ = g.AddBranch(Approve, compose.NewGraphBranch(func(ctx context.Context, input *schema.Message) (endNode string, err error) {
-		if strings.Contains(input.Content, "YES") {
+		if strings.Contains(strings.ToUpper(input.Content), "YES") {
 			return Trans_List, nil
 		}
 		return ToRefineVar, nil
