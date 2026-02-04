@@ -15,6 +15,7 @@ func init() {
 	initArk()
 	initOpenAI()
 	initQwen()
+	initGemini()
 }
 
 // registerEmbeddingModel 注册嵌入模型进入工厂

@@ -4,6 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Eino 总控图控制台</title>
+    <!-- 引入 Markdown 渲染和代码高亮库 -->
+    <script src="https://cdn.jsdelivr.net/npm/markdown-it@14.1.0/dist/markdown-it.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <style>
         * { box-sizing: border-box; }
         body {
@@ -237,30 +241,46 @@
     </div>
 </div>
 
-<script>
-    const chatMessages = document.getElementById('chatMessages');
-    const userInput = document.getElementById('userInput');
-    const sendBtn = document.getElementById('sendBtn');
-    let currentSessionID = ''; // 记录当前会话 ID
+    <script>
+        const chatMessages = document.getElementById('chatMessages');
+        const userInput = document.getElementById('userInput');
+        const sendBtn = document.getElementById('sendBtn');
+        let currentSessionID = ''; // 记录当前会话 ID
 
-    function appendMessage(role, content, isSQL = false, isApproval = false) {
-        const msgDiv = document.createElement('div');
-        msgDiv.className = `message message-${role}`;
+        // 初始化 markdown-it
+        const md = window.markdownit({
+            html: true,
+            linkify: true,
+            typographer: true,
+            highlight: function (str, lang) {
+                if (lang && hljs.getLanguage(lang)) {
+                    try {
+                        return hljs.highlight(str, { language: lang }).value;
+                    } catch (__) {}
+                }
+                return ''; // 使用默认转义
+            }
+        });
 
-        const infoDiv = document.createElement('div');
-        infoDiv.className = 'message-info';
-        infoDiv.textContent = role === 'user' ? '您' : 'AI 助手';
+        function appendMessage(role, content, isSQL = false, isApproval = false) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message message-${role}`;
 
-        const contentDiv = document.createElement('div');
-        if (isSQL) {
-            contentDiv.className = 'sql-code';
-            contentDiv.innerHTML = `<pre>${content}</pre>`;
-        } else {
-            contentDiv.textContent = content;
-        }
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'message-info';
+            infoDiv.textContent = role === 'user' ? '您' : 'AI 助手';
 
-        msgDiv.appendChild(infoDiv);
-        msgDiv.appendChild(contentDiv);
+            const contentDiv = document.createElement('div');
+            if (isSQL) {
+                contentDiv.className = 'sql-code';
+                contentDiv.innerHTML = `<pre>${content}</pre>`;
+            } else {
+                // 使用 Markdown 渲染
+                contentDiv.innerHTML = md.render(content);
+            }
+
+            msgDiv.appendChild(infoDiv);
+            msgDiv.appendChild(contentDiv);
 
         if (isApproval) {
             const btnArea = document.createElement('div');
@@ -337,7 +357,8 @@
                         contentDiv.className = 'sql-code';
                         contentDiv.innerHTML = `<pre>${data.answer}</pre>`;
                     } else {
-                        contentDiv.textContent = data.answer;
+                        // 使用 Markdown 渲染
+                        contentDiv.innerHTML = md.render(data.answer);
                     }
 
                     if (data.status === 'need_approval') {
@@ -398,7 +419,8 @@
                             contentDiv.className = 'sql-code';
                             contentDiv.innerHTML = `<pre>${fullContent}</pre>`;
                         } else {
-                            contentDiv.textContent = fullContent;
+                            // 使用 Markdown 实时渲染
+                            contentDiv.innerHTML = md.render(fullContent);
                         }
                         chatMessages.scrollTop = chatMessages.scrollHeight;
                     }
