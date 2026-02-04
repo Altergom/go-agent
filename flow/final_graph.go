@@ -96,6 +96,7 @@ func BuildFinalGraph(ctx context.Context, store compose.CheckPointStore) (compos
 	// 类型转换：[]*Message -> *Message
 	_ = g.AddLambdaNode(ToToolCall, compose.InvokableLambda(func(ctx context.Context, input []*schema.Message) (*schema.Message, error) {
 		msg, err := tool.MsgsToMsg(ctx, input)
+		msg.Content = msg.Content[5:]
 		if err != nil {
 			return nil, err
 		}
