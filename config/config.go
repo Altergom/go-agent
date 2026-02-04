@@ -18,6 +18,7 @@ type Config struct {
 	OpenAIConf   OpenAIConfig
 	QwenConf     QwenConfig
 	DeepSeekConf DeepSeekConfig
+	GeminiConf   GeminiConfig
 
 	MilvusConf MilvusConfig
 	ESConf     ESConfig
@@ -52,6 +53,12 @@ type DeepSeekConfig struct {
 	DeepSeekChatModel string
 	DeepSeekEmbedding string
 	DeepSeekTimeout   string
+}
+
+type GeminiConfig struct {
+	GeminiKey       string
+	GeminiChatModel string
+	GeminiEmbedding string
 }
 
 type MilvusConfig struct {
@@ -126,6 +133,11 @@ func LoadConfig() (*Config, error) {
 			DeepSeekTimeout:   getEnv("DeepSeek_TIMEOUT", ""),
 			DeepSeekChatModel: getEnv("DeepSeek_CHAT_MODEL", ""),
 			DeepSeekEmbedding: getEnv("DeepSeek_EMBEDDING_MODEL", ""),
+		},
+		GeminiConf: GeminiConfig{
+			GeminiKey:       getEnv("GEMINI_KEY", ""),
+			GeminiChatModel: getEnv("GEMINI_CHAT_MODEL", ""),
+			GeminiEmbedding: getEnv("GEMINI_EMBEDDING_MODEL", ""),
 		},
 		MilvusConf: MilvusConfig{
 			MilvusAddr:          getEnv("MILVUS_ADDR", "localhost:27017"),

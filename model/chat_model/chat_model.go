@@ -16,6 +16,7 @@ func init() {
 	initOpenAI()
 	initQwen()
 	initDeepSeek()
+	initGemini()
 }
 
 // registerChatModel 注册聊天模型进入工厂
