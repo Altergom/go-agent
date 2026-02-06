@@ -24,7 +24,6 @@ const (
 	SQL_Tpl      = "SQL_Tpl"
 	SQL_Model    = "SQL_Model"
 	Approve      = "Approve"
-	ToRefineVar  = "ToRefineVar"
 )
 
 func init() {
@@ -112,38 +111,13 @@ func BuildReactGraph(ctx context.Context) (*compose.Graph[[]*schema.Message, []*
 		return nil, compose.Interrupt(ctx, input.Content)
 	}))
 
-	// 拒绝回流转换：*Message -> map[string]any
-	_ = g.AddLambdaNode(ToRefineVar, compose.InvokableLambda(func(ctx context.Context, input *schema.Message) (output map[string]any, err error) {
-		var stateDocs string
-		_ = compose.ProcessState[*FinalGraphRequest](ctx, func(ctx context.Context, state *FinalGraphRequest) error {
-			stateDocs = state.Docs
-			return nil
-		})
-
-		return map[string]any{
-			"query": input.Content,
-			"docs":  stateDocs,
-		}, nil
-	}))
-
-	// 审批分支
-	_ = g.AddBranch(Approve, compose.NewGraphBranch(func(ctx context.Context, input *schema.Message) (endNode string, err error) {
-		if strings.Contains(strings.ToUpper(input.Content), "YES") {
-			return Trans_List, nil
-		}
-		return ToRefineVar, nil
-	}, map[string]bool{
-		ToRefineVar: true,
-		Trans_List:  true,
-	}))
-
 	// 连线
 	_ = g.AddEdge(compose.START, SQL_Retrieve)
 	_ = g.AddEdge(SQL_Retrieve, ToTplVar)
 	_ = g.AddEdge(ToTplVar, SQL_Tpl)
 	_ = g.AddEdge(SQL_Tpl, SQL_Model)
 	_ = g.AddEdge(SQL_Model, Approve)
-	_ = g.AddEdge(ToRefineVar, SQL_Tpl)
+	_ = g.AddEdge(Approve, Trans_List)
 	_ = g.AddEdge(Trans_List, compose.END)
 
 	return g, nil
