@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"go-agent/flow"
-	"go-agent/tool/memory"
 	"io"
 	"net/http"
 	"strings"
@@ -30,7 +29,6 @@ type sessionContext struct {
 }
 
 var sessionContextMap = make(map[string]*sessionContext)
-var store = memory.NewInMemoryStore()
 
 // FinalGraphInvoke 处理总控图的调用请求，支持流式输出
 func FinalGraphInvoke(c *gin.Context) {
@@ -59,9 +57,9 @@ func FinalGraphInvoke(c *gin.Context) {
 			fmt.Printf(">>> Approve: sessionID=%s, interruptID=%s\n", sessionID, sc.InterruptID)
 			invokeCtx = compose.ResumeWithData(invokeCtx, sc.InterruptID, req.Query)
 
-			runnable, err := flow.BuildFinalGraph(c, store)
+			runnable, err := flow.GetFinalGraph()
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to build graph: " + err.Error()})
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get graph: " + err.Error()})
 				return
 			}
 
@@ -100,9 +98,9 @@ func FinalGraphInvoke(c *gin.Context) {
 	}
 
 	// 没有打断时
-	runnable, err := flow.BuildFinalGraph(c, store)
+	runnable, err := flow.GetFinalGraph()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to build graph: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get graph: " + err.Error()})
 		return
 	}
 

@@ -2,8 +2,10 @@ package rag_flow
 
 import (
 	"context"
+	"fmt"
 	"go-agent/rag/rag_tools/indexer"
 	document2 "go-agent/tool/document"
+	"sync"
 
 	"github.com/cloudwego/eino/components/document"
 
@@ -18,8 +20,29 @@ const (
 	Loader   = "Loader"
 )
 
-// BuildIndexingGraph 创建检索图
-func BuildIndexingGraph(ctx context.Context) (compose.Runnable[document.Source, []string], error) {
+var (
+	cachedIndexingGraph  compose.Runnable[document.Source, []string]
+	indexingGraphOnce    sync.Once
+	indexingGraphInitErr error
+)
+
+// InitIndexingGraph 在应用启动时编译并缓存索引图
+func InitIndexingGraph(ctx context.Context) error {
+	indexingGraphOnce.Do(func() {
+		cachedIndexingGraph, indexingGraphInitErr = buildIndexingGraph(ctx)
+	})
+	return indexingGraphInitErr
+}
+
+func GetIndexingGraph() (compose.Runnable[document.Source, []string], error) {
+	if cachedIndexingGraph == nil {
+		return nil, fmt.Errorf("IndexingGraph 未初始化，请先调用 InitIndexingGraph")
+	}
+	return cachedIndexingGraph, nil
+}
+
+// buildIndexingGraph 创建索引图
+func buildIndexingGraph(ctx context.Context) (compose.Runnable[document.Source, []string], error) {
 	// 创建图
 	g := compose.NewGraph[document.Source, []string]()
 

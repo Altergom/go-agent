@@ -7,12 +7,66 @@ import (
 	"go-agent/config"
 	"os"
 	"os/exec"
+	"sync"
 
 	"github.com/cloudwego/eino-ext/components/tool/mcp/officialmcp"
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/compose"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
+
+var (
+	cachedMCPTools []tool.BaseTool
+	mcpOnce        sync.Once
+	mcpInitErr     error
+)
+
+// InitMCPTools 初始化MCP连接并缓存工具实例
+func InitMCPTools(ctx context.Context) error {
+	mcpOnce.Do(func() {
+		cachedMCPTools, mcpInitErr = connectMCP(ctx)
+	})
+	return mcpInitErr
+}
+
+// connectMCP 创建MCP连接并获取工具列表
+func connectMCP(ctx context.Context) ([]tool.BaseTool, error) {
+	cli := mcp.NewClient(&mcp.Implementation{
+		Name:    "go-agent-client",
+		Version: "1.0.0",
+	}, nil)
+
+	cmd := exec.Command("npx", "-y", "mcp-server-mysql")
+	cmd.Env = append(os.Environ(),
+		"MYSQL_HOST="+config.Cfg.MySQLConf.Host,
+		"MYSQL_PORT="+config.Cfg.MySQLConf.Port,
+		"MYSQL_USER="+config.Cfg.MySQLConf.Username,
+		"MYSQL_PASS="+config.Cfg.MySQLConf.Password,
+		"MYSQL_DB="+config.Cfg.MySQLConf.Database,
+	)
+
+	transport := &mcp.CommandTransport{
+		Command: cmd,
+	}
+
+	session, err := cli.Connect(ctx, transport, nil)
+	if err != nil {
+		return nil, fmt.Errorf("MCP 客户端连接失败: %w", err)
+	}
+
+	return officialmcp.GetTools(ctx, &officialmcp.Config{
+		Cli:          session,
+		ToolNameList: []string{"mysql_query", "list_tables", "describe_table"},
+	})
+}
+
+// GetMCPTool 返回缓存的 MCP 工具列表
+func GetMCPTool(ctx context.Context) ([]tool.BaseTool, error) {
+	if cachedMCPTools == nil {
+		return nil, fmt.Errorf("MCP 工具未初始化，请先调用 InitMCPTools")
+	}
+	return cachedMCPTools, nil
+}
 
 func SQLExecute(ctx context.Context, sql string) (string, error) {
 	mcpTool, err := GetMCPTool(ctx)
@@ -56,35 +110,4 @@ func SQLExecute(ctx context.Context, sql string) (string, error) {
 	})
 
 	return result, nil
-}
-
-func GetMCPTool(ctx context.Context) ([]tool.BaseTool, error) {
-	cli := mcp.NewClient(&mcp.Implementation{
-		Name:    "go-agent-client",
-		Version: "1.0.0",
-	}, nil)
-
-	cmd := exec.Command("npx", "-y", "mcp-server-mysql")
-
-	cmd.Env = append(os.Environ(),
-		"MYSQL_HOST="+config.Cfg.MySQLConf.Host,
-		"MYSQL_PORT="+config.Cfg.MySQLConf.Port,
-		"MYSQL_USER="+config.Cfg.MySQLConf.Username,
-		"MYSQL_PASS="+config.Cfg.MySQLConf.Password,
-		"MYSQL_DB="+config.Cfg.MySQLConf.Database,
-	)
-
-	transport := &mcp.CommandTransport{
-		Command: cmd,
-	}
-
-	session, err := cli.Connect(ctx, transport, nil)
-	if err != nil {
-		return nil, fmt.Errorf("MCP 客户端连接失败: %w", err)
-	}
-
-	return officialmcp.GetTools(ctx, &officialmcp.Config{
-		Cli:          session,
-		ToolNameList: []string{"mysql_query", "list_tables", "describe_table"},
-	})
 }

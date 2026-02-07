@@ -4,10 +4,15 @@ import (
 	"context"
 	"go-agent/api"
 	"go-agent/config"
+	"go-agent/flow"
+	"go-agent/model/chat_model"
+	"go-agent/rag/rag_flow"
 	"go-agent/rag/rag_tools/db"
 	"go-agent/rag/rag_tools/indexer"
 	"go-agent/rag/rag_tools/retriever"
 	"go-agent/tool/document"
+	"go-agent/tool/memory"
+	"go-agent/tool/sql_tools"
 	"go-agent/tool/trace"
 	"log"
 )
@@ -65,6 +70,40 @@ func main() {
 		log.Fatalf("cozeloop init fail: %v", err)
 	}
 	defer closeCoze()
+
+	// 初始化MCP
+	err = sql_tools.InitMCPTools(ctx)
+	if err != nil {
+		log.Fatalf("MCP tools init fail: %v", err)
+	}
+	log.Println("MCP 工具连接已建立")
+
+	// 预编译索引图
+	err = rag_flow.InitIndexingGraph(ctx)
+	if err != nil {
+		log.Fatalf("IndexingGraph init fail: %v", err)
+	}
+	log.Println("IndexingGraph 已编译缓存")
+
+	// 预编译RAG对话图
+	memStore := memory.NewMemoryStore()
+	taskModel, err := chat_model.GetChatModel(ctx, config.Cfg.ChatModelType)
+	if err != nil {
+		log.Fatalf("task model init fail: %v", err)
+	}
+	err = flow.InitRAGChatFlow(ctx, memStore, taskModel)
+	if err != nil {
+		log.Fatalf("RAGChatFlow init fail: %v", err)
+	}
+	log.Println("RAGChatFlow 已编译缓存")
+
+	// 预编译全局图
+	checkPointStore := memory.NewInMemoryStore()
+	err = flow.InitFinalGraph(ctx, checkPointStore)
+	if err != nil {
+		log.Fatalf("FinalGraph init fail: %v", err)
+	}
+	log.Println("FinalGraph 已编译缓存")
 
 	api.Run()
 }
