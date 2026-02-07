@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"go-agent/flow"
-	"go-agent/model/chat_model"
 	"io"
 	"log"
 
@@ -30,8 +29,7 @@ func RAGChatStream(c *gin.Context) {
 		langsmith.AddTag("session:"+req.SessionID),
 	)
 
-	chat, _ := chat_model.GetChatModel(ctx, "ark")
-	ragRunner, err := flow.BuildRAGChatFlow(ctx, memStore, chat)
+	ragRunner, err := flow.GetRAGChatFlow()
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return

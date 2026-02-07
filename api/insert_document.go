@@ -102,8 +102,12 @@ func InsertDocument(c *gin.Context) {
 		}
 	}()
 
-	indexingRunner, err := rag_flow.BuildIndexingGraph(ctx)
+	indexingRunner, err := rag_flow.GetIndexingGraph()
 	if err != nil {
+		c.JSON(500, InsertDocumentResponse{
+			Success: false,
+			Message: fmt.Sprintf("获取索引图失败: %v", err),
+		})
 		return
 	}
 	// 创建文档源并执行索引

@@ -11,11 +11,13 @@ require (
 	github.com/cloudwego/eino-ext/components/document/parser/pdf v0.0.0-20260115090517-94ed114d488d
 	github.com/cloudwego/eino-ext/components/document/transformer/splitter/recursive v0.0.0-20260114111548-9f93a1348a18
 	github.com/cloudwego/eino-ext/components/embedding/ark v0.1.1
+	github.com/cloudwego/eino-ext/components/embedding/gemini v0.0.0-20260204064123-1f91f547c77e
 	github.com/cloudwego/eino-ext/components/embedding/openai v0.0.0-20260119032004-acb76fa4e2d5
 	github.com/cloudwego/eino-ext/components/indexer/es8 v0.0.0-20260120090714-cbdb3cd3bc4f
 	github.com/cloudwego/eino-ext/components/indexer/milvus v0.0.0-20260114111548-9f93a1348a18
 	github.com/cloudwego/eino-ext/components/model/ark v0.1.62
 	github.com/cloudwego/eino-ext/components/model/deepseek v0.1.2
+	github.com/cloudwego/eino-ext/components/model/gemini v0.1.28
 	github.com/cloudwego/eino-ext/components/model/openai v0.1.7
 	github.com/cloudwego/eino-ext/components/model/qwen v0.1.5
 	github.com/cloudwego/eino-ext/components/retriever/es8 v0.0.0-20260120090714-cbdb3cd3bc4f
@@ -29,6 +31,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/milvus-io/milvus-sdk-go/v2 v2.4.2
 	github.com/modelcontextprotocol/go-sdk v1.2.0
+	google.golang.org/genai v1.44.0
 )
 
 require (
@@ -45,8 +48,6 @@ require (
 	github.com/bytedance/sonic v1.14.1 // indirect
 	github.com/bytedance/sonic/loader v0.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
-	github.com/cloudwego/eino-ext/components/embedding/gemini v0.0.0-20260204064123-1f91f547c77e // indirect
-	github.com/cloudwego/eino-ext/components/model/gemini v0.1.28 // indirect
 	github.com/cockroachdb/errors v1.12.0 // indirect
 	github.com/cockroachdb/logtags v0.0.0-20230118201751-21c54148d20b // indirect
 	github.com/cockroachdb/redact v1.1.5 // indirect
@@ -130,8 +131,6 @@ require (
 	golang.org/x/sys v0.35.0 // indirect
 	golang.org/x/text v0.27.0 // indirect
 	golang.org/x/tools v0.34.0 // indirect
-	google.golang.org/genai v1.44.0 // indirect
-	google.golang.org/genproto v0.0.0-20240903143218-8af14fe29dc1 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250324211829-b45e905df463 // indirect
 	google.golang.org/grpc v1.73.0 // indirect
 	google.golang.org/protobuf v1.36.9 // indirect

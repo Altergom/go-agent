@@ -2,11 +2,13 @@ package flow
 
 import (
 	"context"
+	"fmt"
 	"go-agent/config"
 	"go-agent/model/chat_model"
 	"go-agent/tool"
 	"go-agent/tool/sql_tools"
 	"strings"
+	"sync"
 
 	"github.com/cloudwego/eino/components/prompt"
 	"github.com/cloudwego/eino/compose"
@@ -34,7 +36,29 @@ func init() {
 	schema.Register[*FinalGraphRequest]()
 }
 
-func BuildFinalGraph(ctx context.Context, store compose.CheckPointStore) (compose.Runnable[FinalGraphRequest, []*schema.Message], error) {
+var (
+	cachedFinalGraph  compose.Runnable[FinalGraphRequest, []*schema.Message]
+	finalGraphOnce    sync.Once
+	finalGraphInitErr error
+)
+
+// InitFinalGraph 在应用启动时编译并缓存全局图
+func InitFinalGraph(ctx context.Context, store compose.CheckPointStore) error {
+	finalGraphOnce.Do(func() {
+		cachedFinalGraph, finalGraphInitErr = buildFinalGraph(ctx, store)
+	})
+	return finalGraphInitErr
+}
+
+// GetFinalGraph 返回缓存的总控图
+func GetFinalGraph() (compose.Runnable[FinalGraphRequest, []*schema.Message], error) {
+	if cachedFinalGraph == nil {
+		return nil, fmt.Errorf("FinalGraph 未初始化，请先调用 InitFinalGraph")
+	}
+	return cachedFinalGraph, nil
+}
+
+func buildFinalGraph(ctx context.Context, store compose.CheckPointStore) (compose.Runnable[FinalGraphRequest, []*schema.Message], error) {
 	g := compose.NewGraph[FinalGraphRequest, []*schema.Message](
 		compose.WithGenLocalState(func(ctx context.Context) *FinalGraphRequest {
 			return &FinalGraphRequest{}
@@ -62,7 +86,10 @@ func BuildFinalGraph(ctx context.Context, store compose.CheckPointStore) (compos
 		return cm.Generate(ctx, output)
 	}))
 	//  React 子图
-	react, _ := BuildReactGraph(ctx)
+	react, err := BuildReactGraph(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("构建 React 子图失败: %w", err)
+	}
 	_ = g.AddGraphNode(React, react, compose.WithStatePreHandler(func(ctx context.Context, in []*schema.Message, state *FinalGraphRequest) ([]*schema.Message, error) {
 		return []*schema.Message{schema.UserMessage(state.Query)}, nil
 	}))
@@ -104,7 +131,10 @@ func BuildFinalGraph(ctx context.Context, store compose.CheckPointStore) (compos
 	}))
 
 	// MCP 执行节点
-	tools, _ := sql_tools.GetMCPTool(ctx)
+	tools, err := sql_tools.GetMCPTool(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("获取 MCP 工具失败: %w", err)
+	}
 	mcpTool, err := compose.NewToolNode(ctx, &compose.ToolsNodeConfig{
 		Tools: tools,
 	})

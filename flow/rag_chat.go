@@ -2,9 +2,11 @@ package flow
 
 import (
 	"context"
+	"fmt"
 	"go-agent/model/chat_model"
 	"go-agent/rag/rag_tools"
 	"go-agent/tool/memory"
+	"sync"
 
 	"go-agent/rag/rag_flow"
 
@@ -32,7 +34,28 @@ type GraphState struct {
 	Docs    []*schema.Document
 }
 
-func BuildRAGChatFlow(ctx context.Context, store memory.Store, taskModel model.BaseChatModel) (compose.Runnable[RAGChatInput, *schema.Message], error) {
+var (
+	cachedRAGChatFlow  compose.Runnable[RAGChatInput, *schema.Message]
+	ragChatFlowOnce    sync.Once
+	ragChatFlowInitErr error
+)
+
+// InitRAGChatFlow 在应用启动时编译并缓存RAG对话图
+func InitRAGChatFlow(ctx context.Context, store memory.Store, taskModel model.BaseChatModel) error {
+	ragChatFlowOnce.Do(func() {
+		cachedRAGChatFlow, ragChatFlowInitErr = buildRAGChatFlow(ctx, store, taskModel)
+	})
+	return ragChatFlowInitErr
+}
+
+func GetRAGChatFlow() (compose.Runnable[RAGChatInput, *schema.Message], error) {
+	if cachedRAGChatFlow == nil {
+		return nil, fmt.Errorf("RAGChatFlow 未初始化，请先调用 InitRAGChatFlow")
+	}
+	return cachedRAGChatFlow, nil
+}
+
+func buildRAGChatFlow(ctx context.Context, store memory.Store, taskModel model.BaseChatModel) (compose.Runnable[RAGChatInput, *schema.Message], error) {
 	const (
 		PreProcess = "preProcess"
 		Rewrite    = "rewrite"
@@ -86,6 +109,11 @@ func BuildRAGChatFlow(ctx context.Context, store memory.Store, taskModel model.B
 		return query, nil
 	}))
 
+	// string -> []*schema.Message 转换节点（Rewrite 输出 string，Retrieve 子图入参是 []*schema.Message）
+	_ = g.AddLambdaNode("QueryToMsgs", compose.InvokableLambda(func(ctx context.Context, query string) ([]*schema.Message, error) {
+		return []*schema.Message{schema.UserMessage(query)}, nil
+	}))
+
 	_ = g.AddGraphNode(Retrieve, retrieverSubGraph)
 
 	// []*schema.Document转为[]*schema.Message
@@ -134,7 +162,8 @@ func BuildRAGChatFlow(ctx context.Context, store memory.Store, taskModel model.B
 
 	_ = g.AddEdge(compose.START, PreProcess)
 	_ = g.AddEdge(PreProcess, Rewrite)
-	_ = g.AddEdge(Rewrite, Retrieve)
+	_ = g.AddEdge(Rewrite, "QueryToMsgs")
+	_ = g.AddEdge("QueryToMsgs", Retrieve)
 	_ = g.AddEdge(Retrieve, "ConstructMessages")
 	_ = g.AddEdge("ConstructMessages", Chat)
 	_ = g.AddEdge(Chat, compose.END)
