@@ -26,6 +26,7 @@ type Config struct {
 	LangSmithConf LangSmithConfig
 
 	MySQLConf MySQLConfig
+	RedisConf RedisConfig
 }
 
 type ArkConfig struct {
@@ -90,6 +91,12 @@ type MySQLConfig struct {
 	Username string
 	Password string
 	Database string
+}
+
+type RedisConfig struct {
+	Addr     string
+	Password string
+	DB       string
 }
 
 var Cfg *Config
@@ -163,6 +170,11 @@ func LoadConfig() (*Config, error) {
 			Username: getEnv("MYSQL_USERNAME", ""),
 			Password: getEnv("MYSQL_PASSWORD", ""),
 			Database: getEnv("MYSQL_DATABASE", ""),
+		},
+		RedisConf: RedisConfig{
+			Addr:     getEnv("REDIS_ADDR", "localhost:6379"),
+			Password: getEnv("REDIS_PASSWORD", ""),
+			DB:       getEnv("REDIS_DB", "0"),
 		},
 	}
 
