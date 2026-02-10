@@ -13,8 +13,11 @@ import (
 	"go-agent/tool/document"
 	"go-agent/tool/memory"
 	"go-agent/tool/sql_tools"
+	"go-agent/tool/storage"
 	"go-agent/tool/trace"
 	"log"
+
+	"github.com/cloudwego/eino-ext/devops"
 )
 
 func main() {
@@ -26,6 +29,19 @@ func main() {
 	if err != nil {
 		log.Fatal("警告: 未找到 .env 文件")
 	}
+
+	err = devops.Init(ctx)
+	if err != nil {
+		log.Printf("[eino dev] init failed, err=%v", err)
+		return
+	}
+
+	// 初始化Redis
+	err = storage.InitRedis(ctx)
+	if err != nil {
+		log.Printf("警告: Redis 初始化失败，将使用内存模式: %v", err)
+	}
+	defer storage.CloseRedis()
 
 	// 初始化数据库
 	db.Milvus, err = db.NewMilvus(ctx)
@@ -97,8 +113,8 @@ func main() {
 	}
 	log.Println("RAGChatFlow 已编译缓存")
 
-	// 预编译全局图
-	checkPointStore := memory.NewInMemoryStore()
+	// 预编译全局图（使用Redis缓存）
+	checkPointStore := storage.NewRedisCheckPointStore()
 	err = flow.InitFinalGraph(ctx, checkPointStore)
 	if err != nil {
 		log.Fatalf("FinalGraph init fail: %v", err)

@@ -5,12 +5,19 @@ import (
 	"go-agent/config"
 	"go-agent/rag/rag_tools/retriever"
 	"go-agent/tool"
+	"go-agent/tool/storage"
 	"sort"
 	"strconv"
 
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 )
+
+var retrievalCache *storage.RetrievalCache
+
+func init() {
+	retrievalCache = storage.NewRetrievalCache()
+}
 
 const (
 	MilvusRetriever = "MilvusRetriever"
@@ -36,9 +43,27 @@ func BuildRetrieverGraph(ctx context.Context) (*compose.Graph[[]*schema.Message,
 	_ = g.AddRetrieverNode(MilvusRetriever, milvus, compose.WithOutputKey("milvus_retriever"))
 	_ = g.AddRetrieverNode(ESRetriever, es, compose.WithOutputKey("es_retriever"))
 
-	_ = g.AddLambdaNode(Trans_String, compose.InvokableLambda(tool.MsgsToQuery))
+	// 转换节点带缓存检查
+	_ = g.AddLambdaNode(Trans_String, compose.InvokableLambda(func(ctx context.Context, input []*schema.Message) (string, error) {
+		query, err := tool.MsgsToQuery(ctx, input)
+		if err != nil {
+			return "", err
+		}
+
+		// 检查缓存
+		if docs, found := retrievalCache.GetRetrieval(ctx, query); found {
+			// 将缓存结果放入上下文，让后续节点直接使用
+			ctx = context.WithValue(ctx, "cached_docs", docs)
+		}
+
+		return query, nil
+	}))
 
 	_ = g.AddLambdaNode(Reranker, compose.InvokableLambda(func(ctx context.Context, input map[string]any) ([]*schema.Document, error) {
+		// 先检查是否有缓存结果
+		if cached, ok := ctx.Value("cached_docs").([]*schema.Document); ok {
+			return cached, nil
+		}
 		// RRF 混合检索重排算法
 		// 具体讲解见algorithm/rrf.go
 		const k = 60
@@ -90,6 +115,14 @@ func BuildRetrieverGraph(ctx context.Context) (*compose.Graph[[]*schema.Message,
 		if len(results) > topk {
 			results = results[:topk]
 		}
+
+		// 异步写入缓存
+		go func(ctx context.Context, results []*schema.Document) {
+			// 从上下文获取query
+			if query, ok := ctx.Value("query").(string); ok {
+				retrievalCache.SetRetrieval(context.Background(), query, results)
+			}
+		}(ctx, results)
 
 		return results, nil
 	}))
