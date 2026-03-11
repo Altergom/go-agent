@@ -107,7 +107,7 @@ func FinalGraphInvoke(c *gin.Context) {
 	// 每次执行使用不同的CheckPointID 防止记忆污染
 	checkPointID := fmt.Sprintf("%s-%d", sessionID, time.Now().UnixNano())
 
-	reader, err := runnable.Stream(invokeCtx, req, compose.WithCheckPointID(checkPointID))
+	reader, err := runnable.Stream(invokeCtx, req, compose.WithCheckPointID(checkPointID), compose.WithForceNewRun())
 	if err != nil {
 		// 处理中断
 		if info, ok := compose.ExtractInterruptInfo(err); ok {
